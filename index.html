@@ -1,0 +1,2781 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Work-Pilot RulePack 可视化校验工具</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f5fbfd;
+      --paper: #ffffff;
+      --paper-soft: #eefbfe;
+      --canvas-bg: #f5f8f9;
+      --ink: #162338;
+      --muted: #65738a;
+      --line: #c8eaf1;
+      --line-strong: #82d6e4;
+      --cyan: #12b8cf;
+      --blue: #3d7df0;
+      --green: #21a67a;
+      --amber: #d68a18;
+      --red: #e14d56;
+      --violet: #7b61ff;
+      --graph-line: #aebbc7;
+      --shadow: 0 12px 32px rgba(27, 91, 112, 0.09);
+      --code: #102333;
+      --code-ink: #e4f9ff;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #11161f;
+        --paper: #171d28;
+        --paper-soft: #142b35;
+        --canvas-bg: #121923;
+        --ink: #e8f2ff;
+        --muted: #9fb0c8;
+        --line: #284552;
+        --line-strong: #1d899d;
+        --graph-line: #607181;
+        --shadow: none;
+        --code: #0b111a;
+        --code-ink: #d8f7ff;
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    button, input, textarea, select {
+      font: inherit;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      background: var(--paper);
+      color: var(--ink);
+      border-radius: 8px;
+      min-height: 36px;
+      padding: 0 12px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      border-color: var(--line-strong);
+      color: var(--cyan);
+    }
+
+    button.primary {
+      background: var(--cyan);
+      color: #fff;
+      border-color: var(--cyan);
+      font-weight: 800;
+    }
+
+    button.ghost {
+      border-color: transparent;
+      background: transparent;
+    }
+
+    button.tab {
+      min-height: 34px;
+      border-color: transparent;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    button.tab.active {
+      background: var(--paper-soft);
+      border-color: var(--line);
+      color: var(--ink);
+    }
+
+    .app {
+      width: min(1440px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 24px 0 48px;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: center;
+      padding: 18px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    h1, h2, h3 {
+      margin: 0;
+      line-height: 1.25;
+    }
+
+    h1 {
+      font-size: 24px;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      font-size: 18px;
+    }
+
+    h3 {
+      font-size: 16px;
+    }
+
+    .subtitle {
+      margin: 5px 0 0;
+      color: var(--muted);
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .file-button {
+      position: relative;
+      overflow: hidden;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 36px;
+      padding: 0 12px;
+      border-radius: 8px;
+      background: var(--cyan);
+      color: #fff;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .file-button input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 16px;
+      margin-top: 16px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 54px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .panel-body {
+      padding: 16px;
+    }
+
+    .dropzone {
+      display: grid;
+      place-items: center;
+      min-height: 170px;
+      border: 1px dashed var(--line-strong);
+      border-radius: 8px;
+      background: var(--paper-soft);
+      color: var(--muted);
+      text-align: center;
+      padding: 18px;
+    }
+
+    .dropzone.dragover {
+      border-color: var(--cyan);
+      outline: 3px solid rgba(18, 184, 207, 0.18);
+    }
+
+    .paste-area {
+      width: 100%;
+      min-height: 150px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      background: var(--paper);
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 12px;
+      font-family: Consolas, "Microsoft YaHei", monospace;
+      line-height: 1.45;
+    }
+
+    .stack {
+      display: grid;
+      gap: 14px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(120px, 1fr));
+      gap: 10px;
+    }
+
+    .metric {
+      min-height: 76px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+    }
+
+    .metric .label {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .metric .value {
+      margin-top: 6px;
+      font-size: 24px;
+      font-weight: 900;
+      color: var(--cyan);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .node-detail-head-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      width: 100%;
+      min-width: 0;
+    }
+
+    .node-detail-tabs {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 3px;
+      width: 100%;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper-soft);
+    }
+
+    .node-detail-tabs .tab {
+      width: 100%;
+      min-width: 0;
+      min-height: 30px;
+      padding: 0 8px;
+      border-radius: 6px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .node-detail-tabs .tab.active {
+      background: var(--paper);
+      border-color: var(--line-strong);
+    }
+
+    #selectedNodeBadge {
+      display: block;
+      max-width: min(190px, 58%);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      line-height: 24px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 24px;
+      padding: 0 8px;
+      border-radius: 999px;
+      background: var(--paper-soft);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .badge.ok {
+      color: var(--green);
+      background: rgba(33, 166, 122, 0.12);
+    }
+
+    .badge.warn {
+      color: var(--amber);
+      background: rgba(214, 138, 24, 0.13);
+    }
+
+    .badge.err {
+      color: var(--red);
+      background: rgba(225, 77, 86, 0.13);
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 16px;
+      align-items: stretch;
+      height: clamp(540px, 68vh, 760px);
+    }
+
+    .canvas-shell {
+      position: relative;
+      min-height: 0;
+      flex: 1 1 auto;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--canvas-bg);
+    }
+
+    .canvas-pane {
+      display: flex;
+      min-height: 0;
+      min-width: 0;
+      flex-direction: column;
+    }
+
+    .node-detail-panel {
+      display: flex;
+      min-height: 0;
+      overflow: hidden;
+      flex-direction: column;
+      box-shadow: none;
+    }
+
+    .node-detail-panel .panel-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      align-items: start;
+      gap: 10px;
+      flex: 0 0 auto;
+      padding: 14px 16px 12px;
+    }
+
+    .node-detail-panel #nodeDetail {
+      align-content: start;
+      min-height: 0;
+      flex: 1 1 auto;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+    }
+
+    .flow-viewport {
+      position: relative;
+      min-width: 720px;
+      min-height: 420px;
+    }
+
+    .flow-stage {
+      position: relative;
+      min-width: 720px;
+      min-height: 420px;
+      transform-origin: 0 0;
+    }
+
+    .flow-svg {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    .flow-scene-svg {
+      pointer-events: auto;
+    }
+
+    .flow-scene-svg .edge-path {
+      pointer-events: none;
+    }
+
+    .flow-scene-svg .edge-junction {
+      fill: var(--graph-line);
+      pointer-events: none;
+    }
+
+    .edge-label rect {
+      fill: var(--paper);
+      stroke: var(--line);
+      stroke-width: 1;
+    }
+
+    .edge-label text {
+      fill: var(--ink);
+      font-size: 12px;
+      font-weight: 700;
+      dominant-baseline: middle;
+      text-anchor: middle;
+    }
+
+    .svg-node-card {
+      cursor: pointer;
+      pointer-events: auto;
+    }
+
+    .svg-node-shape {
+      fill: var(--paper);
+      stroke: var(--graph-line);
+      stroke-width: 1;
+      filter: url(#node-shadow);
+    }
+
+    .svg-node-card.selected .svg-node-shape {
+      stroke: var(--cyan);
+      stroke-width: 2;
+    }
+
+    .svg-node-card.start .svg-node-shape {
+      stroke: rgba(33, 166, 122, 0.65);
+    }
+
+    .svg-node-card.end .svg-node-shape {
+      stroke: rgba(225, 77, 86, 0.65);
+    }
+
+    .svg-node-label {
+      fill: var(--ink);
+      font-size: 14px;
+      font-weight: 700;
+      dominant-baseline: middle;
+      user-select: none;
+    }
+
+    .svg-node-dot {
+      fill: var(--cyan);
+    }
+
+    .svg-node-card.start .svg-node-dot {
+      fill: var(--green);
+    }
+
+    .svg-node-card.end .svg-node-dot {
+      fill: var(--red);
+    }
+
+    .svg-node-count-bg {
+      fill: var(--paper-soft);
+    }
+
+    .svg-node-count {
+      fill: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      dominant-baseline: middle;
+      text-anchor: middle;
+      user-select: none;
+    }
+
+    .detail-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .flow-explain-toggle {
+      width: 100%;
+      justify-content: center;
+      font-weight: 800;
+      background: var(--paper-soft);
+    }
+
+    .flow-explain {
+      display: grid;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper-soft);
+    }
+
+    .flow-explain-section {
+      display: grid;
+      gap: 8px;
+    }
+
+    .flow-explain-card {
+      display: grid;
+      gap: 6px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+    }
+
+    .flow-explain-card strong {
+      color: var(--ink);
+    }
+
+    .flow-explain-card p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .form-preview {
+      display: grid;
+      align-content: start;
+      gap: 16px;
+    }
+
+    .form-preview-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .form-preview-fields {
+      display: grid;
+      align-content: start;
+      grid-auto-rows: max-content;
+      gap: 13px;
+    }
+
+    .preview-field {
+      display: grid;
+      align-content: start;
+      grid-template-rows: max-content max-content max-content;
+      gap: 6px;
+    }
+
+    .preview-label {
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .required-mark {
+      margin-left: 3px;
+      color: var(--red);
+    }
+
+    .preview-control {
+      width: 100%;
+      min-height: 38px;
+      padding: 8px 10px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: var(--paper);
+      color: var(--ink);
+    }
+
+    textarea.preview-control {
+      min-height: 82px;
+      resize: vertical;
+    }
+
+    .preview-check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+    }
+
+    .preview-readonly {
+      border-style: dashed;
+      color: var(--muted);
+    }
+
+    .kv {
+      display: grid;
+      gap: 5px;
+    }
+
+    .kv b {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      max-width: 100%;
+      min-height: 26px;
+      padding: 0 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--paper);
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+    }
+
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: var(--paper-soft);
+      color: var(--ink);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .mono {
+      font-family: Consolas, monospace;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .search-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .search-row input {
+      min-height: 36px;
+      flex: 1 1 260px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+      color: var(--ink);
+      padding: 0 12px;
+    }
+
+    .validation-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .validation-item {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      background: var(--paper);
+    }
+
+    .validation-item.error {
+      border-color: rgba(225, 77, 86, 0.55);
+    }
+
+    .validation-item.warning {
+      border-color: rgba(214, 138, 24, 0.55);
+    }
+
+    .validation-item.info {
+      border-color: rgba(18, 184, 207, 0.45);
+    }
+
+    .empty {
+      color: var(--muted);
+      text-align: center;
+      padding: 28px;
+    }
+
+    .section-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .hidden { display: none !important; }
+
+    .zoom-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .zoom-bar input {
+      width: 140px;
+    }
+
+    .fullscreen-hint {
+      display: none;
+    }
+
+    #graphView:fullscreen {
+      height: 100vh;
+      padding: 16px;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    #graphView:fullscreen .split {
+      height: 100%;
+      grid-template-columns: minmax(0, 1fr) 360px;
+    }
+
+    #graphView:fullscreen .canvas-pane {
+      display: flex;
+      min-height: 0;
+      flex-direction: column;
+    }
+
+    #graphView:fullscreen .canvas-shell {
+      min-height: 0;
+      flex: 1 1 auto;
+    }
+
+    #graphView:fullscreen .fullscreen-hint {
+      display: inline;
+    }
+
+    .small {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 1100px) {
+      .layout,
+      .split {
+        grid-template-columns: 1fr;
+      }
+
+      #graphView .split {
+        height: auto;
+      }
+
+      #graphView .canvas-pane,
+      #graphView .node-detail-panel {
+        height: 520px;
+      }
+
+      .summary-grid {
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
+      }
+
+      .toolbar {
+        justify-content: flex-start;
+      }
+
+      .topbar {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body data-build="2026-07-30-compact-node-detail-v5">
+  <main class="app">
+    <header class="topbar">
+      <div>
+        <h1>Work-Pilot RulePack 可视化校验工具</h1>
+        <p class="subtitle">上传规则 JSON，查看流程节点、流转条件、节点必填字段、字段表和准出问题。全部解析在本地浏览器完成。</p>
+      </div>
+      <div class="toolbar">
+        <label class="file-button">
+          <span>上传 JSON</span>
+          <input id="fileInput" type="file" accept=".json,application/json" />
+        </label>
+        <button id="parsePasteBtn" type="button">解析粘贴内容</button>
+        <button id="loadSampleBtn" type="button" class="ghost">加载示例</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="stack">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>导入规则包</h2>
+            <span id="fileName" class="badge">未导入</span>
+          </div>
+          <div class="panel-body stack">
+            <div id="dropzone" class="dropzone">
+              <div>
+                <strong>拖入 RulePack JSON</strong>
+                <div class="small">支持 project rulepack 或单 workflow JSON</div>
+              </div>
+            </div>
+            <textarea id="pasteArea" class="paste-area" spellcheck="false" placeholder="也可以把 JSON 粘贴到这里，然后点击“解析粘贴内容”。"></textarea>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>准出校验</h2>
+            <span id="validationBadge" class="badge">等待解析</span>
+          </div>
+          <div class="panel-body">
+            <div id="validationList" class="validation-list">
+              <div class="empty">上传 JSON 后显示校验结果。</div>
+            </div>
+          </div>
+        </section>
+      </aside>
+
+      <section class="stack">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>规则包概览</h2>
+            <span id="ruleIdBadge" class="badge">无规则</span>
+          </div>
+          <div class="panel-body">
+            <div id="summaryGrid" class="summary-grid">
+              <div class="metric"><div class="label">流程数</div><div class="value">0</div></div>
+              <div class="metric"><div class="label">字段数</div><div class="value">0</div></div>
+              <div class="metric"><div class="label">节点数</div><div class="value">0</div></div>
+              <div class="metric"><div class="label">流转边</div><div class="value">0</div></div>
+              <div class="metric"><div class="label">问题数</div><div class="value">0</div></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>流程解析</h2>
+              <div id="workflowMeta" class="small">等待导入规则包</div>
+            </div>
+            <div id="workflowTabs" class="tabs"></div>
+          </div>
+          <div class="panel-body">
+            <div class="section-tabs">
+              <button class="tab active" data-view="graph" type="button">流程图</button>
+              <button class="tab" data-view="transitions" type="button">流转条件</button>
+              <button class="tab" data-view="fields" type="button">字段表</button>
+              <button class="tab" data-view="raw" type="button">原始摘要</button>
+            </div>
+
+            <div id="graphView" class="view">
+              <div class="split">
+                <div class="canvas-pane">
+                  <div class="zoom-bar" style="margin-bottom:10px">
+                    <span class="small">缩放</span>
+                    <input id="zoomRange" type="range" min="25" max="200" step="5" value="100" />
+                    <span id="zoomValue" class="badge">100%</span>
+                    <button id="fitBtn" type="button" class="ghost">适应画布</button>
+                    <button id="fullscreenBtn" type="button" aria-pressed="false">⛶ 全屏</button>
+                    <span class="small fullscreen-hint">Ctrl + 鼠标滚轮缩放</span>
+                  </div>
+                  <div id="canvasShell" class="canvas-shell">
+                    <div id="flowViewport" class="flow-viewport">
+                      <div id="flowStage" class="flow-stage">
+                        <svg id="flowSvg" class="flow-svg flow-scene-svg"></svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <aside class="panel node-detail-panel">
+                  <div class="panel-head">
+                    <div class="node-detail-head-row">
+                      <h2>节点详情</h2>
+                      <span id="selectedNodeBadge" class="badge">未选择</span>
+                    </div>
+                    <div class="tabs node-detail-tabs">
+                      <button id="nodeFieldsTab" class="tab active" type="button">字段信息</button>
+                      <button id="nodeFormTab" class="tab" type="button">表单预览</button>
+                      <button id="nodeFlowTab" class="tab" type="button">流转说明</button>
+                    </div>
+                  </div>
+                  <div id="nodeDetail" class="panel-body detail-list">
+                    <div class="empty">点击流程图中的节点，查看必填字段和可选字段。</div>
+                  </div>
+                </aside>
+              </div>
+            </div>
+
+            <div id="transitionsView" class="view hidden">
+              <div id="transitionTable" class="table-wrap"></div>
+            </div>
+
+            <div id="fieldsView" class="view hidden">
+              <div class="search-row">
+                <input id="fieldSearch" type="search" placeholder="搜索字段 key / name / type / uiType" />
+                <span id="fieldCountBadge" class="badge">0 个字段</span>
+              </div>
+              <div id="fieldTable" class="table-wrap" style="margin-top:12px"></div>
+            </div>
+
+            <div id="rawView" class="view hidden">
+              <pre id="rawSummary" class="mono" style="white-space:pre-wrap;background:var(--code);color:var(--code-ink);border-radius:8px;padding:14px;overflow:auto;max-height:520px"></pre>
+            </div>
+          </div>
+        </section>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const RESERVED_SYSTEM_KEYS = new Set([
+      "rulePackId",
+      "rulePackVersion",
+      "workflowType",
+      "currentNode",
+      "currentOwner",
+      "status",
+      "createdAt",
+      "updatedAt"
+    ]);
+
+    const PROJECT_SCHEMA_VERSION = "work-pilot-project-rulepack/v1-lite";
+    const WORKFLOW_SCHEMA_VERSION = "work-pilot-rulepack/v1-lite";
+    const REQUIRED_SYSTEM_FIELDS = ["rulePackId", "rulePackVersion", "workflowType", "currentNode", "currentOwner", "status"];
+    const PROJECT_KEYS = new Set(["schemaVersion", "rulePackId", "version", "name", "fieldRuleMode", "description", "sourceData", "notificationPolicy", "workflows"]);
+    const WORKFLOW_KEYS = new Set(["schemaVersion", "rulePackId", "version", "workflowType", "name", "roles", "fields", "nodes", "edges", "table", "statusDerivation", "ai", "notificationPolicy", "extensions"]);
+    const SUPPORTED_FIELD_TYPES = new Set(["text", "rich_text", "number", "select", "multi_select", "user", "date", "bool", "url", "attachment", "relation", "relation_multi"]);
+    const SUPPORTED_NODE_TYPES = new Set(["start", "normal", "end"]);
+    const SUPPORTED_CONDITION_OPS = new Set(["eq", "neq", "in", "not_in", "exists", "empty"]);
+    const LEGACY_CONDITION_OPS = new Set(["not_empty"]);
+    const SUPPORTED_EFFECT_TYPES = new Set(["set_status", "set_owner", "set_completed_at", "append_audit_log"]);
+
+    const SYSTEM_DISPLAY_NAMES = {
+      rulePackId: "规则包ID",
+      rulePackVersion: "规则版本",
+      workflowType: "流程类型",
+      currentNode: "当前节点",
+      currentOwner: "当前负责人",
+      status: "流程状态",
+      createdAt: "创建时间",
+      updatedAt: "更新时间"
+    };
+
+    const state = {
+      raw: null,
+      rulepack: null,
+      workflows: [],
+      activeWorkflowIndex: 0,
+      selectedNodeId: null,
+      nodeDetailMode: "fields",
+      validations: [],
+      zoom: 1,
+      currentLayout: null,
+      currentGraphKey: null
+    };
+
+    const el = {
+      fileInput: document.getElementById("fileInput"),
+      fileName: document.getElementById("fileName"),
+      dropzone: document.getElementById("dropzone"),
+      pasteArea: document.getElementById("pasteArea"),
+      parsePasteBtn: document.getElementById("parsePasteBtn"),
+      loadSampleBtn: document.getElementById("loadSampleBtn"),
+      validationBadge: document.getElementById("validationBadge"),
+      validationList: document.getElementById("validationList"),
+      ruleIdBadge: document.getElementById("ruleIdBadge"),
+      summaryGrid: document.getElementById("summaryGrid"),
+      workflowTabs: document.getElementById("workflowTabs"),
+      workflowMeta: document.getElementById("workflowMeta"),
+      graphView: document.getElementById("graphView"),
+      canvasShell: document.getElementById("canvasShell"),
+      flowViewport: document.getElementById("flowViewport"),
+      flowStage: document.getElementById("flowStage"),
+      flowSvg: document.getElementById("flowSvg"),
+      nodeDetail: document.getElementById("nodeDetail"),
+      selectedNodeBadge: document.getElementById("selectedNodeBadge"),
+      nodeFieldsTab: document.getElementById("nodeFieldsTab"),
+      nodeFormTab: document.getElementById("nodeFormTab"),
+      nodeFlowTab: document.getElementById("nodeFlowTab"),
+      transitionTable: document.getElementById("transitionTable"),
+      fieldTable: document.getElementById("fieldTable"),
+      fieldSearch: document.getElementById("fieldSearch"),
+      fieldCountBadge: document.getElementById("fieldCountBadge"),
+      rawSummary: document.getElementById("rawSummary"),
+      zoomRange: document.getElementById("zoomRange"),
+      zoomValue: document.getElementById("zoomValue"),
+      fitBtn: document.getElementById("fitBtn"),
+      fullscreenBtn: document.getElementById("fullscreenBtn")
+    };
+
+    function safeArray(value) {
+      return Array.isArray(value) ? value : [];
+    }
+
+    function text(value, fallback = "") {
+      if (value === null || value === undefined) return fallback;
+      if (typeof value === "string") return value;
+      return JSON.stringify(value);
+    }
+
+    function escapeHtml(value) {
+      return text(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function summarizeCondition(condition) {
+      if (!condition) return "";
+      if (typeof condition === "string") return condition;
+      if (condition.field && condition.op) {
+        return `${condition.field} ${condition.op} ${text(condition.value)}`;
+      }
+      return JSON.stringify(condition);
+    }
+
+    function summarizeEffects(effects) {
+      return safeArray(effects).map(effect => {
+        if (!effect || typeof effect !== "object") return text(effect);
+        if (effect.type === "set_status") return `设置状态: ${effect.field}=${effect.value}`;
+        if (effect.type === "set_owner") return `设置负责人: ${effect.role}`;
+        if (effect.type === "set_completed_at") return `写完成时间: ${effect.field}`;
+        return effect.type || JSON.stringify(effect);
+      }).join("；");
+    }
+
+    function humanFieldName(fieldKey, fields) {
+      const field = fields.get(fieldKey);
+      if (!field) return fieldKey || "未指定字段";
+      return field.name ? `${field.name}` : field.key;
+    }
+
+    function humanNodeName(nodeId, nodes) {
+      const node = nodes.get(nodeId);
+      if (!node) return nodeId || "未知节点";
+      return node.name || node.id;
+    }
+
+    function humanValue(value) {
+      if (Array.isArray(value)) return value.map(item => `“${text(item)}”`).join("、");
+      if (value === true) return "是";
+      if (value === false) return "否";
+      if (value === null || value === undefined || value === "") return "空";
+      return `“${text(value)}”`;
+    }
+
+    function humanCondition(condition, fields) {
+      if (!condition) return "无额外判断条件，管理员或负责人执行流转后即可通过。";
+      if (typeof condition === "string") return `需要满足规则：${condition}。`;
+      if (condition.field && condition.op) {
+        const field = humanFieldName(condition.field, fields);
+        const value = humanValue(condition.value);
+        const opMap = {
+          eq: `等于 ${value}`,
+          neq: `不等于 ${value}`,
+          in: `属于 ${value}`,
+          not_in: `不属于 ${value}`,
+          exists: "已填写",
+          not_exists: "未填写",
+          empty: "为空",
+          not_empty: "不为空",
+          gt: `大于 ${value}`,
+          gte: `大于等于 ${value}`,
+          lt: `小于 ${value}`,
+          lte: `小于等于 ${value}`
+        };
+        return `只有当「${field}」${opMap[condition.op] || `${condition.op} ${value}`} 时，才允许走这条流转。`;
+      }
+      return `需要满足条件：${JSON.stringify(condition)}。`;
+    }
+
+    function humanRequiredFields(requiredKeys, optionalKeys, fields) {
+      const required = safeArray(requiredKeys);
+      const optional = safeArray(optionalKeys);
+      if (!required.length && !optional.length) return "进入目标节点时无需填写额外字段。";
+      const parts = [];
+      if (required.length) parts.push(`必须填写 ${required.map(key => `「${humanFieldName(key, fields)}」`).join("、")}`);
+      if (optional.length) parts.push(`可选填写 ${optional.map(key => `「${humanFieldName(key, fields)}」`).join("、")}`);
+      return `进入目标节点时，${parts.join("；")}。`;
+    }
+
+    function humanEffects(effects, fields) {
+      const list = safeArray(effects);
+      if (!list.length) return "流转后没有配置额外系统动作。";
+      const parts = list.map(effect => {
+        if (!effect || typeof effect !== "object") return text(effect);
+        if (effect.type === "set_status") return `把「${humanFieldName(effect.field, fields)}」更新为 ${humanValue(effect.value)}`;
+        if (effect.type === "set_owner") return `把当前负责人切换到角色「${effect.role}」`;
+        if (effect.type === "set_completed_at") return `写入完成时间「${humanFieldName(effect.field, fields)}」`;
+        if (effect.type === "append_audit_log") return "追加一条流转审计记录";
+        return `执行 ${effect.type || JSON.stringify(effect)}`;
+      });
+      return `流转后系统会：${parts.join("；")}。`;
+    }
+
+    function humanAction(edge) {
+      if (!edge.action) return "常规推进";
+      const map = {
+        pause: "暂停",
+        resume: "恢复",
+        reject: "退回",
+        accept: "验收通过",
+        submit_to_test: "提交测试",
+        verify_passed: "验证通过",
+        verify_failed: "验证不通过",
+        mark_solution_limited: "标记方案限制",
+        mark_unfixable: "标记无法修复"
+      };
+      return map[edge.action] || edge.action;
+    }
+
+    function renderEdgeExplanation(edge, direction, nodes, fields) {
+      const fromName = humanNodeName(edge.from, nodes);
+      const toName = humanNodeName(edge.to, nodes);
+      const targetNode = nodes.get(edge.to) || {};
+      const title = direction === "incoming"
+        ? `从「${fromName}」进入本节点`
+        : `从本节点流转到「${toName}」`;
+      return `
+        <div class="flow-explain-card">
+          <strong>${escapeHtml(title)}</strong>
+          <p>动作：${escapeHtml(humanAction(edge))}</p>
+          <p>条件：${escapeHtml(humanCondition(edge.condition, fields))}</p>
+          <p>${escapeHtml(humanRequiredFields(targetNode.required_fields, targetNode.optional_fields, fields))}</p>
+          <p>${escapeHtml(humanEffects(edge.effects, fields))}</p>
+        </div>`;
+    }
+
+    function normalizeRulepack(parsed) {
+      const workflows = Array.isArray(parsed.workflows) ? parsed.workflows : [parsed];
+      return {
+        raw: parsed,
+        workflows: workflows.filter(Boolean)
+      };
+    }
+
+    function parseRulepack(content, name = "粘贴内容") {
+      try {
+        const parsed = JSON.parse(content);
+        const normalized = normalizeRulepack(parsed);
+        state.raw = parsed;
+        state.rulepack = parsed;
+        state.workflows = normalized.workflows;
+        state.activeWorkflowIndex = 0;
+        state.selectedNodeId = null;
+        state.nodeDetailMode = "fields";
+        state.currentGraphKey = null;
+        state.validations = validateRulepack(parsed, state.workflows);
+        el.fileName.textContent = name;
+        renderAll();
+      } catch (err) {
+        state.raw = null;
+        state.rulepack = null;
+        state.workflows = [];
+        state.validations = [{
+          level: "error",
+          code: "JSONCI-PARSE-001",
+          scope: "JSON",
+          message: "JSON 解析失败",
+          detail: err.message
+        }];
+        renderAll();
+      }
+    }
+
+    function addValidation(messages, level, code, scope, message, detail) {
+      messages.push({ level, code, scope, message, detail });
+    }
+
+    function isPositiveInteger(value) {
+      return Number.isInteger(value) && value > 0;
+    }
+
+    function sameStringSet(left, right) {
+      const a = [...new Set(safeArray(left))].sort();
+      const b = [...new Set(safeArray(right))].sort();
+      return a.length === b.length && a.every((value, index) => value === b[index]);
+    }
+
+    function roleKeySet(roles) {
+      if (Array.isArray(roles)) {
+        return new Set(roles.map(role => role && (role.key || role.id)).filter(Boolean));
+      }
+      return new Set(roles && typeof roles === "object" ? Object.keys(roles) : []);
+    }
+
+    function optionValueSet(field) {
+      const topLevel = safeArray(field && field.options);
+      const bitable = safeArray(field && field.bitable && field.bitable.property && field.bitable.property.options);
+      return new Set([...topLevel, ...bitable].map(option => {
+        if (typeof option === "string") return option;
+        return option && (option.value ?? option.name);
+      }).filter(value => value !== undefined && value !== null));
+    }
+
+    function edgePolicyKey(edge) {
+      return `${edge.from}->${edge.to}${edge.action ? `:${edge.action}` : ""}`;
+    }
+
+    function findDirectedCycle(nodeIds, edges) {
+      const outgoing = new Map([...nodeIds].map(id => [id, []]));
+      edges.forEach(edge => {
+        if (outgoing.has(edge.from) && nodeIds.has(edge.to)) outgoing.get(edge.from).push(edge.to);
+      });
+      const visited = new Set();
+      const active = new Set();
+      const stack = [];
+      const visit = nodeId => {
+        if (active.has(nodeId)) {
+          const start = stack.indexOf(nodeId);
+          return [...stack.slice(Math.max(0, start)), nodeId];
+        }
+        if (visited.has(nodeId)) return null;
+        visited.add(nodeId);
+        active.add(nodeId);
+        stack.push(nodeId);
+        for (const target of outgoing.get(nodeId) || []) {
+          const cycle = visit(target);
+          if (cycle) return cycle;
+        }
+        stack.pop();
+        active.delete(nodeId);
+        return null;
+      };
+      for (const nodeId of nodeIds) {
+        const cycle = visit(nodeId);
+        if (cycle) return cycle;
+      }
+      return [];
+    }
+
+    function hasDirectedCycle(nodeIds, edges) {
+      return findDirectedCycle(nodeIds, edges).length > 0;
+    }
+
+    function dedupeValidationMessages(messages) {
+      const aggregateCodes = new Set(["JSONCI-EXT-003", "JSONCI-IDEMP-001"]);
+      const groups = new Map();
+      messages.forEach(item => {
+        const aggregate = aggregateCodes.has(item.code);
+        const key = [item.level, item.code, item.message, aggregate ? "" : item.detail].join("|");
+        if (!groups.has(key)) {
+          groups.set(key, {
+            ...item,
+            scopes: new Set(),
+            scopedDetails: new Map()
+          });
+        }
+        const group = groups.get(key);
+        const scope = item.scope || "rulepack";
+        group.scopes.add(scope);
+        if (item.detail) group.scopedDetails.set(scope, item.detail);
+      });
+      return [...groups.values()].map(group => {
+        const scopes = [...group.scopes];
+        const details = [...group.scopedDetails.entries()];
+        const uniqueDetails = [...new Set(details.map(([, detail]) => detail))];
+        return {
+          level: group.level,
+          code: group.code,
+          message: group.message,
+          scope: scopes.length > 1 ? `影响 ${scopes.length} 个流程：${scopes.join("、")}` : scopes[0],
+          detail: uniqueDetails.length <= 1
+            ? uniqueDetails[0] || ""
+            : details.map(([scope, detail]) => `${scope}：${detail}`).join(" ")
+        };
+      });
+    }
+
+    function validateRulepack(rulepack, workflows) {
+      const messages = [];
+      const isProjectRulepack = Boolean(rulepack && Array.isArray(rulepack.workflows));
+      const workflowByType = new Map();
+      const tableKeyOwners = new Map();
+
+      if (!workflows.length) {
+        addValidation(messages, "error", "JSONCI-SCHEMA-001", "rulepack", "没有识别到 workflows", "项目规则包需要 workflows[]；单流程 JSON 需要直接包含 fields、nodes、edges。");
+        return dedupeValidationMessages(messages);
+      }
+
+      if (isProjectRulepack) {
+        if (rulepack.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+          addValidation(messages, "error", "JSONCI-SCHEMA-002", "rulepack", "项目规则包 schemaVersion 不受支持", `应为 ${PROJECT_SCHEMA_VERSION}，当前为 ${text(rulepack.schemaVersion, "未填写")}。`);
+        }
+        if (!rulepack.rulePackId) {
+          addValidation(messages, "error", "JSONCI-IDENTITY-001", "rulepack", "项目规则包缺少 rulePackId", "rulePackId 是发布、缓存和回滚规则包的稳定标识。");
+        }
+        if (!isPositiveInteger(rulepack.version)) {
+          addValidation(messages, "error", "JSONCI-IDENTITY-002", "rulepack", "项目规则包 version 必须是正整数", `当前值：${text(rulepack.version, "未填写")}。`);
+        }
+        Object.keys(rulepack).filter(key => !PROJECT_KEYS.has(key)).forEach(key => {
+          const knownNoop = ["projectSet", "automationRules", "tableBuildPolicy"].includes(key);
+          addValidation(messages, "warning", "JSONCI-EXT-001", "rulepack", `根级字段 ${key} 没有已确认的运行时消费者`, knownNoop
+            ? "该历史字段不会驱动当前 v1-lite 建表或推进逻辑，正式发布前应移除。"
+            : "请先在运行时 schema 和 CI 中证明消费者，再把它作为规则能力发布。");
+        });
+      }
+
+      workflows.forEach((workflow, index) => {
+        const type = workflow && workflow.workflowType;
+        if (type && workflowByType.has(type)) {
+          addValidation(messages, "error", "JSONCI-IDENTITY-003", "rulepack", "workflowType 重复", `${type} 在同一个项目规则包中出现多次。`);
+        } else if (type) {
+          workflowByType.set(type, workflow);
+        }
+      });
+
+      workflows.forEach((workflow, index) => {
+        const wfName = workflow.name || workflow.workflowType || `workflow-${index + 1}`;
+        const fields = safeArray(workflow.fields);
+        const nodes = safeArray(workflow.nodes);
+        const edges = safeArray(workflow.edges);
+        const fieldKeys = new Set();
+        const fieldNames = new Set();
+        const fieldsByKey = new Map();
+        const nodeIds = new Set();
+        const nodesById = new Map();
+        const roles = roleKeySet(workflow.roles);
+        const systemFields = new Set(safeArray(workflow.table && workflow.table.systemFields));
+        const systemNames = new Set([...systemFields].map(key => SYSTEM_DISPLAY_NAMES[key]).filter(Boolean));
+        const edgeKeys = new Set();
+        const statusFieldKeys = new Set();
+
+        if (workflow.schemaVersion !== WORKFLOW_SCHEMA_VERSION) {
+          addValidation(messages, "error", "JSONCI-SCHEMA-003", wfName, "workflow schemaVersion 不受支持", `应为 ${WORKFLOW_SCHEMA_VERSION}，当前为 ${text(workflow.schemaVersion, "未填写")}。`);
+        }
+        if (!workflow.rulePackId) {
+          addValidation(messages, "error", "JSONCI-IDENTITY-004", wfName, "workflow 缺少 rulePackId", "单个 workflow 也需要稳定的规则包标识。");
+        }
+        if (!workflow.workflowType) {
+          addValidation(messages, "error", "JSONCI-IDENTITY-005", wfName, "workflow 缺少 workflowType", "无法据此选择流程主表或解析跨表关联。");
+        }
+        if (!isPositiveInteger(workflow.version)) {
+          addValidation(messages, "error", "JSONCI-IDENTITY-006", wfName, "workflow version 必须是正整数", `当前值：${text(workflow.version, "未填写")}。`);
+        }
+        Object.keys(workflow).filter(key => !WORKFLOW_KEYS.has(key)).forEach(key => {
+          addValidation(messages, "warning", "JSONCI-EXT-002", wfName, `workflow 字段 ${key} 没有已确认的运行时消费者`, "正式发布前应删除，或先补齐运行时 schema、解析器和 CI 支持。");
+        });
+
+        const logicalKey = workflow.table && workflow.table.main && workflow.table.main.logicalKey;
+        if (!logicalKey) {
+          addValidation(messages, "error", "JSONCI-TABLE-001", wfName, "缺少主表 logicalKey", "请在 table.main.logicalKey 中声明本流程主表的稳定逻辑标识。");
+        } else if (tableKeyOwners.has(logicalKey)) {
+          addValidation(messages, "error", "JSONCI-TABLE-002", wfName, "主表 logicalKey 重复", `${logicalKey} 已被 ${tableKeyOwners.get(logicalKey)} 使用。`);
+        } else {
+          tableKeyOwners.set(logicalKey, wfName);
+        }
+        REQUIRED_SYSTEM_FIELDS.forEach(key => {
+          if (!systemFields.has(key)) {
+            addValidation(messages, "error", "JSONCI-TABLE-003", wfName, "主表缺少必需系统字段", `table.systemFields 需要包含 ${key}。`);
+          }
+        });
+
+        fields.forEach(field => {
+          if (!field || typeof field !== "object") {
+            addValidation(messages, "error", "JSONCI-FIELD-001", wfName, "存在非法字段定义", "fields[] 中有非对象字段。");
+            return;
+          }
+          if (!field.key) {
+            addValidation(messages, "error", "JSONCI-FIELD-002", wfName, "字段缺少 key", field.name || JSON.stringify(field));
+          }
+          if (!field.name) {
+            addValidation(messages, "error", "JSONCI-FIELD-003", wfName, "字段缺少 name", field.key || JSON.stringify(field));
+          }
+          if (!SUPPORTED_FIELD_TYPES.has(field.type)) {
+            addValidation(messages, "error", "JSONCI-FIELD-004", wfName, "字段类型不受支持", `${field.key || field.name}: ${text(field.type, "未填写")}。`);
+          }
+          if (!field.bitable || !field.bitable.uiType) {
+            addValidation(messages, "warning", "JSONCI-FIELD-005", wfName, "字段缺少 bitable.uiType", `${field.key || field.name} 无法明确映射到飞书多维表格字段控件。`);
+          }
+          if (field.key) {
+            if (fieldKeys.has(field.key)) {
+              addValidation(messages, "error", "JSONCI-FIELD-006", wfName, "字段 key 重复", field.key);
+            }
+            fieldKeys.add(field.key);
+            fieldsByKey.set(field.key, field);
+            if (RESERVED_SYSTEM_KEYS.has(field.key)) {
+              addValidation(messages, "error", "JSONCI-FIELD-007", wfName, "业务字段 key 占用系统字段", `${field.key} 应放在 table.systemFields，不应放入 fields[]。`);
+            }
+          }
+          if (field.name) {
+            if (fieldNames.has(field.name)) {
+              addValidation(messages, "error", "JSONCI-FIELD-008", wfName, "字段展示名重复", field.name);
+            }
+            fieldNames.add(field.name);
+            if (systemNames.has(field.name)) {
+              addValidation(messages, "error", "JSONCI-FIELD-009", wfName, "业务字段展示名与系统字段冲突", `${field.name} 会与 table.systemFields 生成字段重名。请改为业务负责人、需求负责人等业务名称。`);
+            }
+          }
+          if (["select", "multi_select"].includes(field.type) && optionValueSet(field).size === 0) {
+            addValidation(messages, "error", "JSONCI-FIELD-010", wfName, "枚举字段没有选项", `${field.key || field.name} 需要在 options 或 bitable.property.options 中声明可选值。`);
+          }
+          const multiple = field.bitable && field.bitable.property && field.bitable.property.multiple;
+          if (field.type === "user" && multiple !== undefined && typeof multiple !== "boolean") {
+            addValidation(messages, "error", "JSONCI-FIELD-011", wfName, "人员字段 multiple 必须是布尔值", `${field.key || field.name}: ${text(multiple)}。`);
+          }
+          const bitableOptions = safeArray(field.bitable && field.bitable.property && field.bitable.property.options);
+          bitableOptions.forEach(option => {
+            if (option && Object.prototype.hasOwnProperty.call(option, "color") && !Number.isInteger(option.color)) {
+              addValidation(messages, "warning", "JSONCI-FIELD-012", wfName, "选项 color 不是飞书整数色号", `${field.key || field.name}: ${JSON.stringify(option)}。建表时应省略该 color，让飞书自动分配。`);
+            }
+          });
+        });
+
+        nodes.forEach(node => {
+          if (!node || !node.id) {
+            addValidation(messages, "error", "JSONCI-NODE-001", wfName, "节点缺少 id", node && node.name ? node.name : JSON.stringify(node));
+            return;
+          }
+          if (nodeIds.has(node.id)) {
+            addValidation(messages, "error", "JSONCI-NODE-002", wfName, "节点 id 重复", node.id);
+          }
+          nodeIds.add(node.id);
+          nodesById.set(node.id, node);
+          const nodeType = node.type || "normal";
+          if (!SUPPORTED_NODE_TYPES.has(nodeType)) {
+            addValidation(messages, "error", "JSONCI-NODE-003", wfName, "节点类型不受支持", `${node.id}: ${nodeType}。`);
+          }
+          const required = safeArray(node.required_fields);
+          const optional = safeArray(node.optional_fields);
+          const overlap = required.filter(key => optional.includes(key));
+          if (overlap.length) {
+            addValidation(messages, "error", "JSONCI-CONTRACT-001", wfName, "节点字段同时被标记为必填和可选", `${node.id}: ${overlap.join("、")}。`);
+          }
+          [...required, ...optional].forEach(ref => {
+            if (!fieldKeys.has(ref)) {
+              addValidation(messages, "error", "JSONCI-CONTRACT-002", wfName, "节点引用了不存在的字段", `${node.name || node.id} -> ${ref}`);
+            }
+          });
+          if (node.owner_role && !roles.has(node.owner_role)) {
+            addValidation(messages, "error", "JSONCI-ROLE-001", wfName, "节点 owner_role 未在 roles 中声明", `${node.id}: ${node.owner_role}。`);
+          }
+          if (nodeType === "end" && node.owner_role) {
+            addValidation(messages, "warning", "JSONCI-ROLE-002", wfName, "终点节点仍声明了 owner_role", `${node.id} 已结束，若不再需要负责人选择，建议移除 ${node.owner_role}。`);
+          }
+        });
+
+        const startNodes = nodes.filter(node => node && node.type === "start");
+        const endNodes = nodes.filter(node => node && node.type === "end");
+        if (startNodes.length !== 1) {
+          addValidation(messages, "error", "JSONCI-GRAPH-003", wfName, "流程必须且只能有一个开始节点", `当前识别到 ${startNodes.length} 个 start 节点。`);
+        }
+        if (!endNodes.length) {
+          addValidation(messages, "error", "JSONCI-GRAPH-004", wfName, "流程至少需要一个结束节点", "请声明 type=end 的终点节点。");
+        }
+
+        edges.forEach(edge => {
+          if (!edge || !edge.from || !edge.to) {
+            addValidation(messages, "error", "JSONCI-EDGE-001", wfName, "流转边缺少 from/to", JSON.stringify(edge));
+            return;
+          }
+          const duplicateKey = `${edge.from}|${edge.to}|${edge.action || ""}`;
+          if (edgeKeys.has(duplicateKey)) {
+            addValidation(messages, "error", "JSONCI-EDGE-002", wfName, "存在重复流转边", edgePolicyKey(edge));
+          }
+          edgeKeys.add(duplicateKey);
+          if (!nodeIds.has(edge.from)) {
+            addValidation(messages, "error", "JSONCI-EDGE-003", wfName, "流转边 from 节点不存在", edge.from);
+          }
+          if (!nodeIds.has(edge.to)) {
+            addValidation(messages, "error", "JSONCI-EDGE-004", wfName, "流转边 to 节点不存在", edge.to);
+          }
+          if (Object.prototype.hasOwnProperty.call(edge, "required_fields") || Object.prototype.hasOwnProperty.call(edge, "optional_fields")) {
+            addValidation(messages, "error", "JSONCI-CONTRACT-004", wfName, "流转边不能定义表单字段", `${edgePolicyKey(edge)}：推进表单只读取目标节点 required_fields / optional_fields，边上的字段会被运行时忽略。`);
+          }
+          if (edge.condition) {
+            if (!edge.condition.field || !edge.condition.op) {
+              addValidation(messages, "error", "JSONCI-COND-001", wfName, "流转条件缺少 field 或 op", `${edgePolicyKey(edge)}: ${JSON.stringify(edge.condition)}。`);
+            } else {
+              const conditionField = fieldsByKey.get(edge.condition.field);
+              if (!conditionField) {
+                addValidation(messages, "error", "JSONCI-COND-002", wfName, "流转条件引用了不存在的字段", `${edgePolicyKey(edge)} -> ${edge.condition.field}。`);
+              }
+              if (!SUPPORTED_CONDITION_OPS.has(edge.condition.op)) {
+                const legacy = LEGACY_CONDITION_OPS.has(edge.condition.op);
+                addValidation(messages, legacy ? "warning" : "error", "JSONCI-COND-003", wfName, legacy ? "流转条件使用了旧操作符" : "流转条件操作符不受支持", `${edgePolicyKey(edge)}: ${edge.condition.op}${legacy ? "，建议改为 exists/empty 的等价表达。" : "。"}`);
+              }
+              if (conditionField && ["select", "multi_select"].includes(conditionField.type) && ["eq", "neq", "in", "not_in"].includes(edge.condition.op)) {
+                const allowed = optionValueSet(conditionField);
+                const values = Array.isArray(edge.condition.value) ? edge.condition.value : [edge.condition.value];
+                values.filter(value => !allowed.has(value)).forEach(value => {
+                  addValidation(messages, "error", "JSONCI-COND-004", wfName, "流转条件使用了未声明的枚举值", `${edgePolicyKey(edge)}: ${conditionField.key}=${text(value)}。`);
+                });
+              }
+            }
+          }
+          safeArray(edge.effects).forEach(effect => {
+            if (!effect || !SUPPORTED_EFFECT_TYPES.has(effect.type)) {
+              addValidation(messages, "error", "JSONCI-EFFECT-001", wfName, "流转副作用类型不受支持", `${edgePolicyKey(edge)}: ${effect ? text(effect.type) : "空对象"}。`);
+              return;
+            }
+            if (effect.type === "set_status") {
+              statusFieldKeys.add(effect.field);
+              const statusField = fieldsByKey.get(effect.field);
+              if (!statusField) {
+                addValidation(messages, "error", "JSONCI-EFFECT-002", wfName, "set_status 引用了不存在的字段", `${edgePolicyKey(edge)} -> ${text(effect.field)}。`);
+              } else if (!optionValueSet(statusField).has(effect.value)) {
+                addValidation(messages, "error", "JSONCI-EFFECT-003", wfName, "set_status 写入了未声明的状态值", `${effect.field}=${text(effect.value)} 不在字段选项中。`);
+              }
+            }
+            if (effect.type === "set_owner" && !roles.has(effect.role)) {
+              addValidation(messages, "error", "JSONCI-EFFECT-004", wfName, "set_owner 引用了未声明角色", `${edgePolicyKey(edge)} -> ${text(effect.role)}。`);
+            }
+            if (effect.type === "set_completed_at") {
+              const completedField = fieldsByKey.get(effect.field);
+              if (!completedField || completedField.type !== "date") {
+                addValidation(messages, "error", "JSONCI-EFFECT-005", wfName, "set_completed_at 需要引用 date 字段", `${edgePolicyKey(edge)} -> ${text(effect.field)}。`);
+              }
+            }
+          });
+        });
+
+        nodes.forEach(node => {
+          if (!node || !node.id) return;
+          const contractFields = [...safeArray(node.required_fields), ...safeArray(node.optional_fields)];
+          const statusInputs = contractFields.filter(key => statusFieldKeys.has(key));
+          if (statusInputs.length) {
+            addValidation(messages, "warning", "JSONCI-FORM-001", wfName, "业务状态字段不应由用户在节点表单中填写", `${node.id}: ${statusInputs.join("、")} 应由流转 effects.set_status 更新。`);
+          }
+          if (node.type !== "start") {
+            const attachments = contractFields.filter(key => fieldsByKey.get(key) && fieldsByKey.get(key).type === "attachment");
+            if (attachments.length) {
+              addValidation(messages, "warning", "JSONCI-FORM-002", wfName, "推进表单包含附件字段", `${node.id}: ${attachments.join("、")}。当前稳定能力只确认了创建表单附件上传，推进页需补运行时验证。`);
+            }
+          }
+        });
+
+        const policy = workflow.extensions && workflow.extensions.fieldEditPolicy;
+        if (workflow.extensions && typeof workflow.extensions === "object") {
+          Object.keys(workflow.extensions).filter(key => key !== "fieldEditPolicy").forEach(key => {
+            addValidation(messages, "warning", "JSONCI-EXT-003", wfName, `extensions.${key} 没有已确认的运行时消费者`, "扩展字段可以保留演进空间，但正式规则不得依赖未实现扩展完成业务行为。");
+          });
+        }
+        if (policy) {
+          const nodeInputs = policy.nodeInputs && typeof policy.nodeInputs === "object" ? policy.nodeInputs : {};
+          const transitionInputs = policy.transitionInputs && typeof policy.transitionInputs === "object" ? policy.transitionInputs : {};
+          nodes.forEach(node => {
+            if (!node || !node.id) return;
+            const entry = nodeInputs[node.id];
+            if (!entry) {
+              addValidation(messages, "warning", "JSONCI-CONTRACT-001", wfName, "fieldEditPolicy.nodeInputs 缺少节点", `${node.id} 未镜像节点输入契约。`);
+              return;
+            }
+            if (!sameStringSet(entry.requiredFields, node.required_fields) || !sameStringSet(entry.optionalFields, node.optional_fields)) {
+              addValidation(messages, "error", "JSONCI-CONTRACT-001", wfName, "nodeInputs 与节点字段契约不一致", `${node.id} 必须逐项镜像 required_fields / optional_fields。`);
+            }
+          });
+          Object.keys(nodeInputs).filter(nodeId => !nodeIds.has(nodeId)).forEach(nodeId => {
+            addValidation(messages, "warning", "JSONCI-CONTRACT-001", wfName, "nodeInputs 引用了不存在的节点", nodeId);
+          });
+          const validTransitionKeys = new Set();
+          edges.forEach(edge => {
+            if (!edge || !edge.from || !edge.to) return;
+            const key = edgePolicyKey(edge);
+            validTransitionKeys.add(key);
+            const entry = transitionInputs[key];
+            const target = nodesById.get(edge.to);
+            if (!entry) {
+              addValidation(messages, "warning", "JSONCI-CONTRACT-003", wfName, "transitionInputs 缺少流转镜像", `${key} 未明确记录目标节点输入契约。`);
+            } else if (target && (!sameStringSet(entry.requiredFields, target.required_fields) || !sameStringSet(entry.optionalFields, target.optional_fields))) {
+              addValidation(messages, "error", "JSONCI-CONTRACT-003", wfName, "transitionInputs 与目标节点契约不一致", `${key} 必须与目标节点 ${edge.to} 完全一致，不能表达路径专属表单。`);
+            }
+          });
+          Object.keys(transitionInputs).filter(key => !validTransitionKeys.has(key)).forEach(key => {
+            addValidation(messages, "warning", "JSONCI-CONTRACT-003", wfName, "transitionInputs 引用了不存在的流转", key);
+          });
+        }
+
+        const validEdges = edges.filter(edge => edge && nodeIds.has(edge.from) && nodeIds.has(edge.to));
+        if (startNodes.length === 1) {
+          const reachable = new Set([startNodes[0].id]);
+          const queue = [startNodes[0].id];
+          while (queue.length) {
+            const current = queue.shift();
+            validEdges.filter(edge => edge.from === current).forEach(edge => {
+              if (!reachable.has(edge.to)) {
+                reachable.add(edge.to);
+                queue.push(edge.to);
+              }
+            });
+          }
+          nodes.filter(node => node && node.id && !reachable.has(node.id)).forEach(node => {
+            addValidation(messages, "error", "JSONCI-GRAPH-001", wfName, "存在从开始节点无法到达的节点", `${node.id} 不会进入真实流程。`);
+          });
+        }
+        if (endNodes.length) {
+          const canReachEnd = new Set(endNodes.map(node => node.id));
+          const queue = [...canReachEnd];
+          while (queue.length) {
+            const current = queue.shift();
+            validEdges.filter(edge => edge.to === current).forEach(edge => {
+              if (!canReachEnd.has(edge.from)) {
+                canReachEnd.add(edge.from);
+                queue.push(edge.from);
+              }
+            });
+          }
+          nodes.filter(node => node && node.id && !canReachEnd.has(node.id)).forEach(node => {
+            addValidation(messages, "error", "JSONCI-GRAPH-002", wfName, "存在无法到达任何结束节点的流程陷阱", `${node.id} 进入后无法正常结束。`);
+          });
+        }
+        const cycle = findDirectedCycle(nodeIds, validEdges);
+        if (cycle.length) {
+          const cycleNames = cycle.map(nodeId => {
+            const node = nodesById.get(nodeId);
+            return node ? node.name || node.id : nodeId;
+          }).join(" → ");
+          addValidation(
+            messages,
+            "warning",
+            "JSONCI-IDEMP-001",
+            wfName,
+            "检测到流程回退，需要验证重复执行安全性",
+            `回退路径：${cycleNames}。含义：任务可以回到已经经过的节点；如果用户重复点击、接口超时重试，或者回退后再次推进，状态、负责人或审计日志可能被重复写入。发布前必须验证同一个流转请求重复执行只生效一次，并且回退后再次推进按最新状态执行。该保障需要运行时幂等控制，不能仅靠 JSON 完成。`
+          );
+        }
+
+        if (roles.has("reporter")) {
+          const start = startNodes[0];
+          const reporterField = fieldsByKey.get("reporter");
+          const startFields = start ? [...safeArray(start.required_fields), ...safeArray(start.optional_fields)] : [];
+          if (!reporterField || reporterField.type !== "user" || !start || start.owner_role !== "reporter" || !startFields.includes("reporter")) {
+            addValidation(messages, "warning", "JSONCI-ACTOR-001", wfName, "创建人自动带入契约不完整", "已声明 reporter 角色时，应同时声明 USER 类型 reporter 字段、把它放入开始节点表单，并令开始节点 owner_role=reporter。");
+          }
+        }
+      });
+
+      workflows.forEach(workflow => {
+        const wfName = workflow.name || workflow.workflowType || "workflow";
+        safeArray(workflow.fields).forEach(field => {
+          if (!field || !["relation", "relation_multi"].includes(field.type)) return;
+          const property = field.bitable && field.bitable.property;
+          const target = property && property.target;
+          const targetWorkflow = target && workflowByType.get(target.workflowType);
+          if (!target || !target.workflowType || !target.tableLogicalKey || !property.displayField) {
+            addValidation(messages, "error", "JSONCI-RELATION-001", wfName, "关联字段缺少目标定义", `${field.key || field.name} 需要 target.workflowType、target.tableLogicalKey 和 displayField。`);
+            return;
+          }
+          if (!targetWorkflow) {
+            addValidation(messages, "error", "JSONCI-RELATION-002", wfName, "关联字段目标流程不存在", `${field.key || field.name} -> ${target.workflowType}。`);
+            return;
+          }
+          const targetLogicalKey = targetWorkflow.table && targetWorkflow.table.main && targetWorkflow.table.main.logicalKey;
+          if (targetLogicalKey !== target.tableLogicalKey) {
+            addValidation(messages, "error", "JSONCI-RELATION-003", wfName, "关联字段目标表不匹配", `${field.key || field.name}: ${target.tableLogicalKey}，实际为 ${text(targetLogicalKey, "未声明")}。`);
+          }
+          const displayFieldExists = safeArray(targetWorkflow.fields).some(candidate => candidate && candidate.key === property.displayField);
+          if (!displayFieldExists) {
+            addValidation(messages, "error", "JSONCI-RELATION-004", wfName, "关联字段展示列不存在", `${field.key || field.name} -> ${target.workflowType}.${property.displayField}。`);
+          }
+        });
+      });
+
+      if (!messages.length) {
+        addValidation(messages, "info", "JSONCI-STATIC-OK", "rulepack", "静态准出预审通过", "未发现 schema、建表、字段契约、图结构或流转规则阻断；正式发布仍需运行 RulePack CI 与真实建表/推进回归。");
+      }
+      return dedupeValidationMessages(messages);
+    }
+
+    function renderAll() {
+      renderSummary();
+      renderValidation();
+      renderWorkflowTabs();
+      renderWorkflow();
+    }
+
+    function activeWorkflow() {
+      return state.workflows[state.activeWorkflowIndex] || null;
+    }
+
+    function renderSummary() {
+      const workflows = state.workflows;
+      const fields = workflows.reduce((sum, wf) => sum + safeArray(wf.fields).length, 0);
+      const nodes = workflows.reduce((sum, wf) => sum + safeArray(wf.nodes).length, 0);
+      const edges = workflows.reduce((sum, wf) => sum + safeArray(wf.edges).length, 0);
+      const errors = state.validations.filter(v => v.level === "error").length;
+      const warnings = state.validations.filter(v => v.level === "warning").length;
+      const ruleId = state.rulepack && (state.rulepack.rulePackId || state.rulepack.name || "已导入");
+      el.ruleIdBadge.textContent = ruleId || "无规则";
+      el.summaryGrid.innerHTML = [
+        ["流程数", workflows.length],
+        ["字段数", fields],
+        ["节点数", nodes],
+        ["流转边", edges],
+        ["问题数", errors + warnings]
+      ].map(([label, value]) => `<div class="metric"><div class="label">${label}</div><div class="value">${value}</div></div>`).join("");
+    }
+
+    function renderValidation() {
+      const errors = state.validations.filter(v => v.level === "error").length;
+      const warnings = state.validations.filter(v => v.level === "warning").length;
+      if (!state.validations.length) {
+        el.validationBadge.className = "badge";
+        el.validationBadge.textContent = "等待解析";
+        el.validationList.innerHTML = `<div class="empty">上传 JSON 后显示校验结果。</div>`;
+        return;
+      }
+      if (errors) {
+        el.validationBadge.className = "badge err";
+        el.validationBadge.textContent = `${errors} 个阻断`;
+      } else if (warnings) {
+        el.validationBadge.className = "badge warn";
+        el.validationBadge.textContent = `${warnings} 个提醒`;
+      } else {
+        el.validationBadge.className = "badge ok";
+        el.validationBadge.textContent = "通过";
+      }
+      el.validationList.innerHTML = state.validations.map(item => `
+        <div class="validation-item ${item.level === "error" ? "error" : item.level === "warning" ? "warning" : "info"}">
+          <div><span class="badge ${item.level === "error" ? "err" : item.level === "warning" ? "warn" : "ok"}">${item.level === "error" ? "阻断" : item.level === "warning" ? "提醒" : "说明"}</span> <strong>${escapeHtml(item.message)}</strong></div>
+          <div class="small">${escapeHtml([item.code, item.scope].filter(Boolean).join(" · "))}</div>
+          <div>${escapeHtml(item.detail || "")}</div>
+        </div>
+      `).join("");
+    }
+
+    function renderWorkflowTabs() {
+      if (!state.workflows.length) {
+        el.workflowTabs.innerHTML = "";
+        return;
+      }
+      el.workflowTabs.innerHTML = state.workflows.map((wf, index) => {
+        const label = wf.workflowType || wf.name || `workflow-${index + 1}`;
+        const cls = index === state.activeWorkflowIndex ? "tab active" : "tab";
+        return `<button type="button" class="${cls}" data-workflow="${index}">${escapeHtml(label)}</button>`;
+      }).join("");
+      el.workflowTabs.querySelectorAll("button").forEach(btn => {
+        btn.addEventListener("click", () => {
+          state.activeWorkflowIndex = Number(btn.dataset.workflow);
+          state.selectedNodeId = null;
+          state.nodeDetailMode = "fields";
+          state.currentGraphKey = null;
+          renderWorkflowTabs();
+          renderWorkflow();
+        });
+      });
+    }
+
+    function renderWorkflow() {
+      const wf = activeWorkflow();
+      if (!wf) {
+        el.workflowMeta.textContent = "等待导入规则包";
+        el.flowStage.innerHTML = `<svg id="flowSvg" class="flow-svg flow-scene-svg"></svg><div class="empty">上传 JSON 后显示流程图。</div>`;
+        el.flowSvg = document.getElementById("flowSvg");
+        el.nodeDetail.innerHTML = `<div class="empty">点击流程图中的节点，查看必填字段和可选字段。</div>`;
+        el.transitionTable.innerHTML = "";
+        el.fieldTable.innerHTML = "";
+        el.rawSummary.textContent = "";
+        return;
+      }
+      el.workflowMeta.textContent = `${wf.name || "未命名流程"} / ${wf.workflowType || "unknown"} / ${safeArray(wf.fields).length} 字段 / ${safeArray(wf.nodes).length} 节点 / ${safeArray(wf.edges).length} 条边`;
+      renderGraph(wf);
+      renderNodeDetail(wf);
+      renderTransitions(wf);
+      renderFields(wf);
+      renderRaw(wf);
+    }
+
+    function estimateNodeWidth(node) {
+      const label = text(node.name || node.id || "未命名节点");
+      const labelWidth = estimateNodeLabelWidth(label);
+      const fieldCount = safeArray(node.required_fields).length + safeArray(node.optional_fields).length;
+      return Math.min(220, Math.max(124, labelWidth + 54 + (fieldCount ? 30 : 0)));
+    }
+
+    function estimateNodeLabelWidth(label) {
+      return [...text(label)].reduce((sum, char) => sum + (char.charCodeAt(0) > 255 ? 14 : 8), 0);
+    }
+
+    function truncateNodeLabel(label, maxWidth) {
+      const source = text(label);
+      if (estimateNodeLabelWidth(source) <= maxWidth) return source;
+      let result = "";
+      for (const char of source) {
+        if (estimateNodeLabelWidth(`${result}${char}…`) > maxWidth) break;
+        result += char;
+      }
+      return `${result}…`;
+    }
+
+    function buildNodeLayout(wf) {
+      const nodes = safeArray(wf.nodes);
+      const edges = safeArray(wf.edges);
+      const nodeMap = new Map(nodes.map(node => [node.id, node]));
+      const nodeOrder = new Map(nodes.map((node, index) => [node.id, index]));
+      const levels = new Map(nodes.map(node => [node.id, 0]));
+      const validEdges = edges.filter(edge => nodeMap.has(edge.from) && nodeMap.has(edge.to));
+      const forwardEdges = validEdges.filter(edge => nodeOrder.get(edge.from) < nodeOrder.get(edge.to));
+      const outgoing = new Map(nodes.map(node => [node.id, []]));
+      forwardEdges.forEach(edge => outgoing.get(edge.from).push(edge));
+
+      // nodes[] 的先后顺序是规则包的稳定流程顺序。只用向后边计算层级，
+      // 返修、回退和自循环边另走外侧通道，避免环路把层级无限拉长。
+      nodes.forEach(node => {
+        const fromLevel = levels.get(node.id) || 0;
+        safeArray(outgoing.get(node.id)).forEach(edge => {
+          levels.set(edge.to, Math.max(levels.get(edge.to) || 0, fromLevel + 1));
+        });
+      });
+
+      const groups = new Map();
+      nodes.forEach(node => {
+        const level = levels.get(node.id) || 0;
+        if (!groups.has(level)) groups.set(level, []);
+        groups.get(level).push(node);
+      });
+
+      const positions = new Map();
+      const yGap = 84;
+      const nodeH = 48;
+      const indexedEdges = validEdges.map(edge => ({ edge, index: edges.indexOf(edge) }));
+      const longForwardIndexes = indexedEdges
+        .filter(({ edge }) => (levels.get(edge.to) || 0) > (levels.get(edge.from) || 0) + 1)
+        .map(({ index }) => index);
+      const returnIndexes = indexedEdges
+        .filter(({ edge }) => (levels.get(edge.to) || 0) <= (levels.get(edge.from) || 0))
+        .map(({ index }) => index);
+
+      const rowOrder = new Map();
+      const sortedLevels = [...groups.keys()].sort((a, b) => a - b);
+      sortedLevels.forEach(level => {
+        const group = groups.get(level);
+        if (level > 0) {
+          group.sort((a, b) => {
+            const score = node => {
+              const predecessors = forwardEdges
+                .filter(edge => edge.to === node.id)
+                .map(edge => rowOrder.get(edge.from))
+                .filter(value => Number.isFinite(value));
+              return predecessors.length
+                ? predecessors.reduce((sum, value) => sum + value, 0) / predecessors.length
+                : nodeOrder.get(node.id);
+            };
+            return score(a) - score(b) || nodeOrder.get(a.id) - nodeOrder.get(b.id);
+          });
+        }
+        group.forEach((node, index) => rowOrder.set(node.id, index));
+      });
+
+      const rowBias = nodeId => {
+        const level = levels.get(nodeId) || 0;
+        const group = groups.get(level) || [];
+        return (rowOrder.get(nodeId) || 0) - (group.length - 1) / 2;
+      };
+      const topLongForwardIndexes = [];
+      const bottomLongForwardIndexes = [];
+      longForwardIndexes.forEach(index => {
+        const edge = edges[index];
+        const sourceBias = rowBias(edge.from);
+        const targetBias = rowBias(edge.to);
+        const routeBias = Math.abs(sourceBias) > 0.001 ? sourceBias : targetBias;
+        if (routeBias > 0) bottomLongForwardIndexes.push(index);
+        else topLongForwardIndexes.push(index);
+      });
+
+      // All rollback/cycle edges use dedicated lanes above the node band. Entering
+      // a previous node from above its right-side input keeps the route clear of
+      // that node's lower right-side fan-out trunk.
+      const topReturnIndexes = [...returnIndexes];
+      const bottomReturnIndexes = [];
+      const topLaneCount = topLongForwardIndexes.length + topReturnIndexes.length;
+      const bottomLaneCount = bottomLongForwardIndexes.length + bottomReturnIndexes.length;
+      const nodeTop = 58 + topLaneCount * 20;
+
+      const maxLevel = Math.max(0, ...[...levels.values()]);
+      const maxGroup = Math.max(1, ...[...groups.values()].map(group => group.length));
+      const columnWidths = Array.from({ length: maxLevel + 1 }, (_, level) => {
+        const group = groups.get(level) || [];
+        return Math.max(124, ...group.map(estimateNodeWidth));
+      });
+      const columnX = [42];
+      for (let level = 1; level <= maxLevel; level++) {
+        columnX[level] = columnX[level - 1] + columnWidths[level - 1] + 118;
+      }
+      const bandHeight = (maxGroup - 1) * yGap + nodeH;
+      const bandCenter = nodeTop + bandHeight / 2;
+      sortedLevels.forEach(level => {
+        const group = groups.get(level);
+        group.forEach((node, index) => {
+          const width = estimateNodeWidth(node);
+          positions.set(node.id, {
+            x: columnX[level] + (columnWidths[level] - width) / 2,
+            y: bandCenter + (index - (group.length - 1) / 2) * yGap - nodeH / 2,
+            w: width,
+            h: nodeH
+          });
+        });
+      });
+
+      const contentBottom = nodeTop + bandHeight;
+      return {
+        positions,
+        levels,
+        nodeOrder,
+        nodeTop,
+        contentBottom,
+        longForwardIndexes,
+        topLongForwardIndexes,
+        bottomLongForwardIndexes,
+        returnIndexes,
+        topReturnIndexes,
+        bottomReturnIndexes,
+        width: Math.max(760, columnX[maxLevel] + columnWidths[maxLevel] + 48),
+        height: Math.max(360, contentBottom + 48 + bottomLaneCount * 22)
+      };
+    }
+
+    function edgeColor(edge) {
+      return "var(--graph-line)";
+    }
+
+    const EDGE_ARROW_CLEARANCE = 0;
+    const EDGE_STROKE_WIDTH = 1.8;
+    const EDGE_ARROW_SIZE = 9;
+    const EDGE_TARGET_OVERLAP_PX = 4;
+    const EDGE_MIN_RENDER_SCALE = 0.55;
+    const EDGE_JUNCTION_GAP = 30;
+    const EDGE_OPPOSING_ROLE_OFFSET = 8;
+
+    function capsuleHorizontalPort(node, offset, side, clearance = 0) {
+      const radius = Math.min(node.h / 2, node.w / 2);
+      const centerY = node.y + node.h / 2;
+      const y = Math.max(node.y + 1, Math.min(node.y + node.h - 1, centerY + offset));
+      const dy = Math.max(-radius, Math.min(radius, y - centerY));
+      const capX = Math.sqrt(Math.max(0, radius * radius - dy * dy));
+      const boundaryX = side === "right"
+        ? node.x + node.w - radius + capX
+        : node.x + radius - capX;
+      return {
+        x: boundaryX + (side === "right" ? clearance : -clearance),
+        y,
+        side
+      };
+    }
+
+    function capsuleVerticalPort(node, offset, side, clearance = 0) {
+      const radius = Math.min(node.h / 2, node.w / 2);
+      const straightHalf = Math.max(0, node.w / 2 - radius - 2);
+      const x = node.x + node.w / 2 + Math.max(-straightHalf, Math.min(straightHalf, offset));
+      const boundaryY = side === "bottom" ? node.y + node.h : node.y;
+      return {
+        x,
+        y: boundaryY + (side === "bottom" ? clearance : -clearance),
+        side
+      };
+    }
+
+    function portForSide(node, offset, side, clearance = 0) {
+      return side === "left" || side === "right"
+        ? capsuleHorizontalPort(node, offset, side, clearance)
+        : capsuleVerticalPort(node, offset, side, clearance);
+    }
+
+    function edgeVisualMetrics(zoom) {
+      const actualZoom = Math.max(0.25, Math.min(2, Number(zoom) || 1));
+      const renderScale = Math.max(EDGE_MIN_RENDER_SCALE, actualZoom);
+      const markerSize = EDGE_ARROW_SIZE / renderScale;
+      const physicalMarkerSize = markerSize * actualZoom;
+      const markerRefX = Math.max(-3, Math.min(8, 8 - EDGE_TARGET_OVERLAP_PX * 10 / physicalMarkerSize));
+      return {
+        strokeWidth: EDGE_STROKE_WIDTH / renderScale,
+        markerSize,
+        markerRefX
+      };
+    }
+
+    function edgeArrowTipOverlap(zoom) {
+      const metrics = edgeVisualMetrics(zoom);
+      const markerTipExtension = (8 - metrics.markerRefX) * metrics.markerSize / 10;
+      return markerTipExtension;
+    }
+
+    function syncEdgeVisualScale() {
+      const metrics = edgeVisualMetrics(state.zoom);
+      el.flowStage.querySelectorAll(".edge-path").forEach(path => {
+        path.setAttribute("stroke-width", String(metrics.strokeWidth));
+      });
+      const marker = el.flowStage.querySelector("#arrow-edge");
+      if (marker) {
+        marker.setAttribute("markerWidth", String(metrics.markerSize));
+        marker.setAttribute("markerHeight", String(metrics.markerSize));
+        marker.setAttribute("refX", String(metrics.markerRefX));
+      }
+    }
+
+    function roundedPolyline(points, radius = 10) {
+      const clean = points.filter((point, index) => {
+        if (!index) return true;
+        const previous = points[index - 1];
+        return Math.abs(point.x - previous.x) > 0.01 || Math.abs(point.y - previous.y) > 0.01;
+      });
+      if (clean.length < 2) return "";
+      let path = `M ${clean[0].x} ${clean[0].y}`;
+      for (let index = 1; index < clean.length - 1; index++) {
+        const previous = clean[index - 1];
+        const current = clean[index];
+        const next = clean[index + 1];
+        const incoming = Math.hypot(current.x - previous.x, current.y - previous.y);
+        const outgoing = Math.hypot(next.x - current.x, next.y - current.y);
+        const corner = Math.min(radius, incoming / 2, outgoing / 2);
+        const before = {
+          x: current.x + (previous.x - current.x) * (corner / incoming),
+          y: current.y + (previous.y - current.y) * (corner / incoming)
+        };
+        const after = {
+          x: current.x + (next.x - current.x) * (corner / outgoing),
+          y: current.y + (next.y - current.y) * (corner / outgoing)
+        };
+        path += ` L ${before.x} ${before.y} Q ${current.x} ${current.y} ${after.x} ${after.y}`;
+      }
+      const last = clean[clean.length - 1];
+      return `${path} L ${last.x} ${last.y}`;
+    }
+
+    function edgePath(layout, edge, index, ports, endpointOverride = {}) {
+      const from = layout.positions.get(edge.from);
+      const to = layout.positions.get(edge.to);
+      const fromLevel = layout.levels.get(edge.from) || 0;
+      const toLevel = layout.levels.get(edge.to) || 0;
+      const sides = edgePortSides(layout, edge, index);
+      const sourcePort = portForSide(from, ports.sourceOffset, sides.source);
+      const targetPort = portForSide(to, ports.targetOffset, sides.target, EDGE_ARROW_CLEARANCE);
+      const source = endpointOverride.source || sourcePort;
+      const target = endpointOverride.target || targetPort;
+
+      if (toLevel === fromLevel + 1) {
+        const midX = (source.x + target.x) / 2;
+        if (Math.abs(source.y - target.y) < 2) {
+          return {
+            path: `M ${source.x} ${source.y} L ${target.x} ${target.y}`,
+            labelX: midX,
+            labelY: source.y - 14,
+            source,
+            target,
+            sourcePort,
+            targetPort,
+            route: "adjacent"
+          };
+        }
+        return {
+          path: `M ${source.x} ${source.y} C ${midX} ${source.y}, ${midX} ${target.y}, ${target.x} ${target.y}`,
+          labelX: midX,
+          labelY: (source.y + target.y) / 2 - 14,
+          source,
+          target,
+          sourcePort,
+          targetPort,
+          route: "adjacent"
+        };
+      }
+
+      const isBottomLong = layout.bottomLongForwardIndexes.includes(index);
+      const isBottomReturn = layout.bottomReturnIndexes.includes(index);
+      const isBottom = isBottomLong || isBottomReturn;
+      const topLongLane = layout.topLongForwardIndexes.indexOf(index);
+      const bottomLongLane = layout.bottomLongForwardIndexes.indexOf(index);
+      const topReturnLane = layout.topReturnIndexes.indexOf(index);
+      const bottomReturnLane = layout.bottomReturnIndexes.indexOf(index);
+      const lane = isBottomLong
+        ? bottomLongLane
+        : isBottomReturn
+          ? layout.bottomLongForwardIndexes.length + bottomReturnLane
+          : toLevel > fromLevel + 1
+            ? topLongLane
+            : layout.topLongForwardIndexes.length + topReturnLane;
+      const laneY = isBottom
+        ? layout.contentBottom + 24 + lane * 22
+        : layout.nodeTop - 22 - lane * 20;
+      const laneSide = isBottom ? "bottom" : "top";
+      const route = isBottom ? "bottom-lane" : "top-lane";
+
+      if (sides.source === laneSide && sides.target === laneSide) {
+        const controlY = laneY;
+        return {
+          path: `M ${source.x} ${source.y} C ${source.x} ${controlY}, ${target.x} ${controlY}, ${target.x} ${target.y}`,
+          labelX: (source.x + target.x) / 2,
+          labelY: laneY + (isBottom ? 15 : -13),
+          source,
+          target,
+          sourcePort,
+          targetPort,
+          route,
+          laneY
+        };
+      }
+
+      const sourceLaneX = sides.source === laneSide
+        ? source.x
+        : sides.source === "right"
+          ? Math.max(source.x, from.x + from.w + 26)
+          : Math.min(source.x, from.x - 26);
+      const targetLaneX = sides.target === laneSide
+        ? target.x
+        : sides.target === "left"
+          ? Math.min(target.x, to.x - 26)
+          : Math.max(target.x, to.x + to.w + 26);
+      const points = [
+        source,
+        ...(sides.source === laneSide ? [] : [{ x: sourceLaneX, y: source.y }]),
+        { x: sourceLaneX, y: laneY },
+        { x: targetLaneX, y: laneY },
+        ...(sides.target === laneSide ? [] : [{ x: targetLaneX, y: target.y }]),
+        target
+      ];
+      return {
+        path: roundedPolyline(points),
+        labelX: (sourceLaneX + targetLaneX) / 2,
+        labelY: laneY + (isBottom ? 15 : -13),
+        source,
+        target,
+        sourcePort,
+        targetPort,
+        route,
+        laneY
+      };
+    }
+
+    function edgePortSides(layout, edge, index) {
+      const fromLevel = layout.levels.get(edge.from) || 0;
+      const toLevel = layout.levels.get(edge.to) || 0;
+      if (toLevel > fromLevel) return { source: "right", target: "left" };
+      if (layout.topReturnIndexes.includes(index)) return { source: "right", target: "top" };
+      if (layout.bottomReturnIndexes.includes(index)) return { source: "right", target: "bottom" };
+      return { source: "right", target: "left" };
+    }
+
+    function buildEdgePorts(edges, layout) {
+      const result = edges.map(() => ({ sourceOffset: 0, targetOffset: 0 }));
+      const roleGroups = new Map();
+      const sideRoles = new Map();
+
+      const addEndpoint = (nodeId, side, edgeIndex, role) => {
+        const sideKey = JSON.stringify([nodeId, side]);
+        if (!sideRoles.has(sideKey)) sideRoles.set(sideKey, new Set());
+        sideRoles.get(sideKey).add(role);
+
+        const roleKey = JSON.stringify([nodeId, side, role]);
+        if (!roleGroups.has(roleKey)) {
+          roleGroups.set(roleKey, { nodeId, side, role, edgeIndexes: [] });
+        }
+        roleGroups.get(roleKey).edgeIndexes.push(edgeIndex);
+      };
+
+      edges.forEach((edge, index) => {
+        const from = layout.positions.get(edge.from);
+        const to = layout.positions.get(edge.to);
+        if (!from || !to) return;
+        const sides = edgePortSides(layout, edge, index);
+        addEndpoint(edge.from, sides.source, index, "source");
+        addEndpoint(edge.to, sides.target, index, "target");
+      });
+
+      roleGroups.forEach(group => {
+        const sideKey = JSON.stringify([group.nodeId, group.side]);
+        const sharesSideWithOppositeRole = (sideRoles.get(sideKey) || new Set()).size > 1;
+        const offset = sharesSideWithOppositeRole
+          ? (group.role === "source" ? EDGE_OPPOSING_ROLE_OFFSET : -EDGE_OPPOSING_ROLE_OFFSET)
+          : 0;
+        group.edgeIndexes.forEach(edgeIndex => {
+          result[edgeIndex][`${group.role}Offset`] = offset;
+        });
+      });
+
+      return result;
+    }
+
+    function offsetHorizontalPort(port, distance) {
+      if (port.side === "top" || port.side === "bottom") {
+        return {
+          x: port.x,
+          y: port.y + (port.side === "bottom" ? distance : -distance),
+          side: port.side
+        };
+      }
+      return {
+        x: port.x + (port.side === "right" ? distance : -distance),
+        y: port.y,
+        side: port.side
+      };
+    }
+
+    function buildEdgeJunctions(edges, layout, ports) {
+      const routing = edges.map(() => ({}));
+      const groups = new Map();
+
+      const addEndpoint = (nodeId, side, edgeIndex, role, port) => {
+        const key = JSON.stringify([nodeId, side, role]);
+        if (!groups.has(key)) {
+          groups.set(key, { nodeId, side, role, port, edgeIndexes: [] });
+        }
+        groups.get(key).edgeIndexes.push(edgeIndex);
+      };
+
+      edges.forEach((edge, index) => {
+        const from = layout.positions.get(edge.from);
+        const to = layout.positions.get(edge.to);
+        if (!from || !to) return;
+        const sides = edgePortSides(layout, edge, index);
+        const sourcePort = portForSide(from, ports[index].sourceOffset, sides.source);
+        const targetPort = portForSide(to, ports[index].targetOffset, sides.target, EDGE_ARROW_CLEARANCE);
+        addEndpoint(edge.from, sides.source, index, "source", sourcePort);
+        addEndpoint(edge.to, sides.target, index, "target", targetPort);
+      });
+
+      const trunks = [];
+      const junctions = [];
+      groups.forEach(group => {
+        if (group.edgeIndexes.length < 2) return;
+        const junction = offsetHorizontalPort(group.port, EDGE_JUNCTION_GAP);
+        group.edgeIndexes.forEach(edgeIndex => {
+          routing[edgeIndex][group.role] = junction;
+          routing[edgeIndex][`${group.role}Shared`] = true;
+        });
+        trunks.push({
+          nodeId: group.nodeId,
+          role: group.role,
+          path: group.role === "source"
+            ? `M ${group.port.x} ${group.port.y} L ${junction.x} ${junction.y}`
+            : `M ${junction.x} ${junction.y} L ${group.port.x} ${group.port.y}`
+        });
+        junctions.push({
+          nodeId: group.nodeId,
+          role: group.role,
+          x: junction.x,
+          y: junction.y
+        });
+      });
+
+      return { routing, trunks, junctions };
+    }
+
+    function syncZoomSurface() {
+      if (!state.currentLayout) return;
+      el.flowStage.style.width = `${state.currentLayout.width}px`;
+      el.flowStage.style.height = `${state.currentLayout.height}px`;
+      el.flowStage.style.transform = `scale(${state.zoom})`;
+      el.flowViewport.style.width = `${state.currentLayout.width * state.zoom}px`;
+      el.flowViewport.style.height = `${state.currentLayout.height * state.zoom}px`;
+      syncEdgeVisualScale();
+    }
+
+    function setZoom(nextZoom, anchorEvent) {
+      const oldZoom = state.zoom;
+      const next = Math.max(0.25, Math.min(2, Math.round(nextZoom * 20) / 20));
+
+      let contentX = 0;
+      let contentY = 0;
+      let pointerX = 0;
+      let pointerY = 0;
+      if (anchorEvent) {
+        const rect = el.canvasShell.getBoundingClientRect();
+        pointerX = anchorEvent.clientX - rect.left;
+        pointerY = anchorEvent.clientY - rect.top;
+        contentX = (el.canvasShell.scrollLeft + pointerX) / oldZoom;
+        contentY = (el.canvasShell.scrollTop + pointerY) / oldZoom;
+      }
+
+      state.zoom = next;
+      el.zoomRange.value = String(Math.round(next * 100));
+      el.zoomValue.textContent = `${Math.round(next * 100)}%`;
+      syncZoomSurface();
+
+      if (anchorEvent) {
+        el.canvasShell.scrollLeft = Math.max(0, contentX * next - pointerX);
+        el.canvasShell.scrollTop = Math.max(0, contentY * next - pointerY);
+      }
+    }
+
+    function fitGraphToViewport() {
+      if (!state.currentLayout) return;
+      const availableWidth = Math.max(240, el.canvasShell.clientWidth - 28);
+      const availableHeight = Math.max(220, el.canvasShell.clientHeight - 28);
+      const next = Math.min(1, availableWidth / state.currentLayout.width, availableHeight / state.currentLayout.height);
+      setZoom(next);
+      el.canvasShell.scrollLeft = 0;
+      el.canvasShell.scrollTop = 0;
+    }
+
+    function renderGraph(wf) {
+      const nodes = safeArray(wf.nodes);
+      const edges = safeArray(wf.edges);
+      const layout = buildNodeLayout(wf);
+      const graphKey = `${state.activeWorkflowIndex}|${nodes.map(node => node.id).join(",")}|${edges.map(edge => `${edge.from}>${edge.to}`).join(",")}`;
+      const shouldFit = state.currentGraphKey !== graphKey;
+      state.currentGraphKey = graphKey;
+      state.currentLayout = layout;
+      const stage = el.flowStage;
+      syncZoomSurface();
+
+      stage.innerHTML = `<svg id="flowSvg" class="flow-svg flow-scene-svg" viewBox="0 0 ${layout.width} ${layout.height}" width="${layout.width}" height="${layout.height}"></svg>`;
+      el.flowSvg = stage.querySelector("#flowSvg");
+
+      const definitions = `
+        <defs>
+          <filter id="node-shadow" x="-20%" y="-35%" width="140%" height="180%">
+            <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#1c3e4d" flood-opacity="0.07"></feDropShadow>
+          </filter>
+          <marker id="arrow-edge" markerWidth="${EDGE_ARROW_SIZE}" markerHeight="${EDGE_ARROW_SIZE}" viewBox="-1 -1 10 10" refX="4" refY="4" orient="auto" markerUnits="userSpaceOnUse" overflow="visible">
+            <path d="M1,1 L8,4 L1,7" fill="none" stroke="var(--graph-line)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"></path>
+          </marker>
+        </defs>`;
+      const edgePorts = buildEdgePorts(edges, layout);
+      const edgeJunctions = buildEdgeJunctions(edges, layout, edgePorts);
+      const paths = edges.map((edge, index) => {
+        const from = layout.positions.get(edge.from);
+        const to = layout.positions.get(edge.to);
+        if (!from || !to) return "";
+        const route = edgeJunctions.routing[index];
+        const geometry = edgePath(layout, edge, index, edgePorts[index], route);
+        const color = edgeColor(edge);
+        const marker = route.targetShared ? "" : ` marker-end="url(#arrow-edge)"`;
+        return `
+          <g style="color:${color}">
+            <path class="edge-path edge-route" d="${geometry.path}" fill="none" stroke="currentColor" stroke-width="${EDGE_STROKE_WIDTH}" stroke-linecap="round" stroke-linejoin="round"${marker}></path>
+          </g>`;
+      }).join("");
+      const trunkPaths = edgeJunctions.trunks.map(trunk => `
+        <path class="edge-path edge-trunk edge-trunk-${trunk.role}" d="${trunk.path}" fill="none" stroke="var(--graph-line)" stroke-width="${EDGE_STROKE_WIDTH}" stroke-linecap="round" stroke-linejoin="round"${trunk.role === "target" ? ` marker-end="url(#arrow-edge)"` : ""}></path>
+      `).join("");
+      const junctionDots = edgeJunctions.junctions.map(junction => `
+        <circle class="edge-junction edge-junction-${junction.role}" cx="${junction.x}" cy="${junction.y}" r="2.6"></circle>
+      `).join("");
+
+      const nodeMarkup = nodes.map(node => {
+        const pos = layout.positions.get(node.id);
+        if (!pos) return "";
+        const requiredCount = safeArray(node.required_fields).length;
+        const optionalCount = safeArray(node.optional_fields).length;
+        const fieldCount = requiredCount + optionalCount;
+        const fullLabel = text(node.name || node.id);
+        const labelWidth = pos.w - 42 - (fieldCount ? 34 : 0);
+        const displayLabel = truncateNodeLabel(fullLabel, labelWidth);
+        const classes = [
+          "svg-node-card",
+          node.type === "start" ? "start" : node.type === "end" ? "end" : "",
+          state.selectedNodeId === node.id ? "selected" : ""
+        ].filter(Boolean).join(" ");
+        return `
+          <g class="${classes}" data-node-id="${escapeHtml(node.id)}" role="button" tabindex="0" aria-label="查看节点 ${escapeHtml(fullLabel)}">
+            <title>${escapeHtml(fullLabel)}</title>
+            <rect class="svg-node-shape" x="${pos.x}" y="${pos.y}" width="${pos.w}" height="${pos.h}" rx="${pos.h / 2}"></rect>
+            <circle class="svg-node-dot" cx="${pos.x + 14}" cy="${pos.y + pos.h / 2}" r="5"></circle>
+            <text class="svg-node-label" x="${pos.x + 26}" y="${pos.y + pos.h / 2 + 0.5}">${escapeHtml(displayLabel)}</text>
+            ${fieldCount ? `
+              <rect class="svg-node-count-bg" x="${pos.x + pos.w - 34}" y="${pos.y + 12}" width="24" height="24" rx="12"></rect>
+              <text class="svg-node-count" x="${pos.x + pos.w - 22}" y="${pos.y + pos.h / 2 + 0.5}">${fieldCount}</text>
+            ` : ""}
+          </g>`;
+      }).join("");
+
+      el.flowSvg.innerHTML = `
+        ${definitions}
+        <g class="node-layer">${nodeMarkup}</g>
+        <g class="edge-route-layer">${paths}</g>
+        <g class="edge-trunk-layer">${trunkPaths}${junctionDots}</g>`;
+      syncEdgeVisualScale();
+
+      el.flowSvg.querySelectorAll(".svg-node-card").forEach(card => {
+        const activate = () => {
+          const nodeId = card.getAttribute("data-node-id");
+          if (!nodeId) return;
+          state.selectedNodeId = nodeId;
+          renderGraph(wf);
+          renderNodeDetail(wf);
+        };
+        card.addEventListener("click", activate);
+        card.addEventListener("keydown", event => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          activate();
+        });
+      });
+
+      if (!nodes.length) {
+        stage.insertAdjacentHTML("beforeend", `<div class="empty">当前 workflow 没有 nodes[]。</div>`);
+      }
+      if (shouldFit) requestAnimationFrame(fitGraphToViewport);
+    }
+
+    function fieldChip(fieldKey, fields) {
+      const field = fields.get(fieldKey);
+      const label = field ? `${field.name || fieldKey} (${fieldKey})` : fieldKey;
+      return `<span class="chip">${escapeHtml(label)}</span>`;
+    }
+
+    function fieldOptions(field) {
+      const source = safeArray(field.options).length
+        ? safeArray(field.options)
+        : safeArray(field.bitable && field.bitable.property && field.bitable.property.options);
+      return source.map(option => typeof option === "string" ? option : option && option.name).filter(Boolean);
+    }
+
+    function renderPreviewControl(field, required) {
+      const type = text(field.type).toLowerCase();
+      const uiType = text(field.bitable && field.bitable.uiType).toLowerCase();
+      const kind = `${type} ${uiType}`;
+      const name = field.name || field.key || "未命名字段";
+      const requiredAttr = required ? " required" : "";
+      const aria = escapeHtml(name);
+
+      if (kind.includes("checkbox") || type === "bool" || type === "boolean") {
+        return `<label class="preview-check"><input type="checkbox" aria-label="${aria}"${requiredAttr} /> <span>是</span></label>`;
+      }
+
+      if (kind.includes("multiselect") || type === "multi_select") {
+        const options = fieldOptions(field);
+        return `<select class="preview-control" multiple size="${Math.min(4, Math.max(2, options.length || 2))}" aria-label="${aria}"${requiredAttr}>${options.map(option => `<option>${escapeHtml(option)}</option>`).join("") || '<option disabled>暂无可选项</option>'}</select>`;
+      }
+
+      if (kind.includes("singleselect") || type === "select") {
+        const options = fieldOptions(field);
+        return `<select class="preview-control" aria-label="${aria}"${requiredAttr}><option value="">请选择</option>${options.map(option => `<option>${escapeHtml(option)}</option>`).join("")}</select>`;
+      }
+
+      if (kind.includes("user") || type === "user") {
+        return `<select class="preview-control" aria-label="${aria}"${requiredAttr}><option value="">选择成员</option></select>`;
+      }
+
+      if (kind.includes("link") || type === "relation" || type === "relation_multi") {
+        const relationHint = type === "relation_multi" || kind.includes("multilink") ? "搜索并选择多个关联记录" : "搜索并选择关联记录";
+        return `<input class="preview-control" type="text" aria-label="${aria}" placeholder="${relationHint}"${requiredAttr} />`;
+      }
+
+      if (kind.includes("datetime") || type === "date") {
+        return `<input class="preview-control" type="date" aria-label="${aria}"${requiredAttr} />`;
+      }
+
+      if (kind.includes("attachment") || type === "attachment") {
+        return `<input class="preview-control" type="file" aria-label="${aria}"${requiredAttr} />`;
+      }
+
+      if (kind.includes("url") || type === "url") {
+        return `<input class="preview-control" type="url" aria-label="${aria}" placeholder="https://"${requiredAttr} />`;
+      }
+
+      if (kind.includes("number") || type === "number") {
+        return `<input class="preview-control" type="number" aria-label="${aria}" placeholder="请输入数字"${requiredAttr} />`;
+      }
+
+      if (type === "rich_text" || /描述|说明|备注|结论|内容/.test(name)) {
+        return `<textarea class="preview-control" aria-label="${aria}" placeholder="请输入${aria}"${requiredAttr}></textarea>`;
+      }
+
+      if (kind.includes("formula") || kind.includes("lookup")) {
+        return `<input class="preview-control preview-readonly" type="text" value="系统自动计算" aria-label="${aria}" readonly />`;
+      }
+
+      return `<input class="preview-control" type="text" aria-label="${aria}" placeholder="请输入${aria}"${requiredAttr} />`;
+    }
+
+    function renderNodeForm(selected, fields) {
+      const requiredKeys = safeArray(selected.required_fields);
+      const optionalKeys = safeArray(selected.optional_fields).filter(key => !requiredKeys.includes(key));
+      const items = [
+        ...requiredKeys.map(key => ({ key, required: true })),
+        ...optionalKeys.map(key => ({ key, required: false }))
+      ];
+      if (!items.length) {
+        return `<div class="form-preview"><div class="form-preview-head"><div><h3>${escapeHtml(selected.name || selected.id)} · 输入表单</h3><div class="small">此节点没有配置需要用户输入的字段。</div></div><span class="badge">0 项</span></div></div>`;
+      }
+      const controls = items.map(item => {
+        const field = fields.get(item.key) || { key: item.key, name: item.key, type: "unknown" };
+        return `
+          <div class="preview-field">
+            <label class="preview-label">${escapeHtml(field.name || item.key)}${item.required ? '<span class="required-mark">*</span>' : ''}</label>
+            ${renderPreviewControl(field, item.required)}
+            <div class="small">${escapeHtml(item.key)} · ${escapeHtml(field.type || "unknown")}${item.required ? " · 必填" : " · 可选"}</div>
+          </div>`;
+      }).join("");
+      return `
+        <div class="form-preview">
+          <div class="form-preview-head">
+            <div><h3>${escapeHtml(selected.name || selected.id)} · 输入表单</h3><div class="small">模拟节点进入后用户看到的填写内容，不会写入数据。</div></div>
+            <span class="badge">${items.length} 项</span>
+          </div>
+          <div class="form-preview-fields">${controls}</div>
+        </div>`;
+    }
+
+    function renderNodeDetail(wf) {
+      const nodes = safeArray(wf.nodes);
+      const nodesById = new Map(nodes.map(node => [node.id, node]));
+      const fields = new Map(safeArray(wf.fields).map(field => [field.key, field]));
+      const selected = nodes.find(node => node.id === state.selectedNodeId) || nodes[0];
+      if (!selected) {
+        el.selectedNodeBadge.textContent = "无节点";
+        el.selectedNodeBadge.removeAttribute("title");
+        el.nodeDetail.innerHTML = `<div class="empty">当前 workflow 没有节点。</div>`;
+        return;
+      }
+      if (!state.selectedNodeId) state.selectedNodeId = selected.id;
+      el.selectedNodeBadge.textContent = selected.id;
+      el.selectedNodeBadge.title = selected.id;
+      const incoming = safeArray(wf.edges).filter(edge => edge.to === selected.id);
+      const outgoing = safeArray(wf.edges).filter(edge => edge.from === selected.id);
+      el.nodeFieldsTab.classList.toggle("active", state.nodeDetailMode === "fields");
+      el.nodeFormTab.classList.toggle("active", state.nodeDetailMode === "form");
+      el.nodeFlowTab.classList.toggle("active", state.nodeDetailMode === "flow");
+
+      if (state.nodeDetailMode === "form") {
+        el.nodeDetail.innerHTML = renderNodeForm(selected, fields);
+        return;
+      }
+
+      if (state.nodeDetailMode === "flow") {
+        const incomingExplain = incoming.length
+          ? incoming.map(edge => renderEdgeExplanation(edge, "incoming", nodesById, fields)).join("")
+          : '<div class="flow-explain-card"><strong>没有进入流转</strong><p>这个节点通常是开始节点，或者当前规则没有配置进入它的边。</p></div>';
+        const outgoingExplain = outgoing.length
+          ? outgoing.map(edge => renderEdgeExplanation(edge, "outgoing", nodesById, fields)).join("")
+          : '<div class="flow-explain-card"><strong>没有离开流转</strong><p>这个节点通常是终点节点，或者当前规则没有配置从它离开的边。</p></div>';
+        el.nodeDetail.innerHTML = `
+          <div class="kv"><b>当前节点</b><div>${escapeHtml(selected.name || selected.id)}</div></div>
+          <div class="flow-explain">
+            <div class="flow-explain-section">
+              <h3>进入这个节点</h3>
+              ${incomingExplain}
+            </div>
+            <div class="flow-explain-section">
+              <h3>从这个节点离开</h3>
+              ${outgoingExplain}
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      el.nodeDetail.innerHTML = `
+        <div class="kv"><b>节点名称</b><div>${escapeHtml(selected.name || selected.id)}</div></div>
+        <div class="kv"><b>节点类型</b><div>${escapeHtml(selected.type || "normal")}</div></div>
+        <div class="kv"><b>负责人角色</b><div>${escapeHtml(selected.owner_role || "未配置")}</div></div>
+        <div class="kv"><b>必要输入字段</b><div class="chips">${safeArray(selected.required_fields).map(key => fieldChip(key, fields)).join("") || '<span class="small">无</span>'}</div></div>
+        <div class="kv"><b>可选输入字段</b><div class="chips">${safeArray(selected.optional_fields).map(key => fieldChip(key, fields)).join("") || '<span class="small">无</span>'}</div></div>
+        <div class="kv"><b>流转数量</b><div class="chips"><span class="chip">${incoming.length} 条进入</span><span class="chip">${outgoing.length} 条离开</span></div></div>
+      `;
+    }
+
+    function renderTransitions(wf) {
+      const nodes = new Map(safeArray(wf.nodes).map(node => [node.id, node]));
+      const fields = new Map(safeArray(wf.fields).map(field => [field.key, field]));
+      const rows = safeArray(wf.edges).map(edge => {
+        const from = nodes.get(edge.from);
+        const to = nodes.get(edge.to);
+        const required = safeArray(to && to.required_fields).map(key => {
+          const field = fields.get(key);
+          return field ? `${field.name} (${key})` : key;
+        }).join("，");
+        return `
+          <tr>
+            <td><strong>${escapeHtml(from ? from.name : edge.from)}</strong><div class="mono">${escapeHtml(edge.from)}</div></td>
+            <td><strong>${escapeHtml(to ? to.name : edge.to)}</strong><div class="mono">${escapeHtml(edge.to)}</div></td>
+            <td>${escapeHtml(edge.action || "")}</td>
+            <td>${escapeHtml(summarizeCondition(edge.condition) || "无")}</td>
+            <td>${escapeHtml(required || "无")}</td>
+            <td>${escapeHtml(summarizeEffects(edge.effects) || "无")}</td>
+          </tr>`;
+      }).join("");
+      el.transitionTable.innerHTML = `
+        <table>
+          <thead><tr><th>来源节点</th><th>目标节点</th><th>动作</th><th>条件</th><th>目标节点必填</th><th>流转效果</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="6" class="empty">当前 workflow 没有 edges[]。</td></tr>'}</tbody>
+        </table>`;
+    }
+
+    function renderFields(wf) {
+      const q = el.fieldSearch.value.trim().toLowerCase();
+      const fields = safeArray(wf.fields).filter(field => {
+        if (!q) return true;
+        const hay = `${field.key || ""} ${field.name || ""} ${field.type || ""} ${field.sourceColumn || ""} ${field.bitable && field.bitable.uiType || ""}`.toLowerCase();
+        return hay.includes(q);
+      });
+      el.fieldCountBadge.textContent = `${fields.length} 个字段`;
+      const rows = fields.map(field => {
+        const uiType = field.bitable && field.bitable.uiType || "";
+        const options = field.options || (field.bitable && field.bitable.property && field.bitable.property.options || []);
+        const optionText = safeArray(options).map(opt => typeof opt === "string" ? opt : opt.name || JSON.stringify(opt)).join("，");
+        return `
+          <tr>
+            <td><strong>${escapeHtml(field.name || "")}</strong>${field.sourceColumn ? `<div class="small">来源列: ${escapeHtml(field.sourceColumn)}</div>` : ""}</td>
+            <td class="mono">${escapeHtml(field.key || "")}</td>
+            <td>${escapeHtml(field.type || "")}</td>
+            <td>${escapeHtml(uiType)}</td>
+            <td>${field.required_on_create ? '<span class="badge warn">创建必填</span>' : ''}${field.statusField ? '<span class="badge ok">状态字段</span>' : ''}</td>
+            <td>${escapeHtml(optionText || "")}</td>
+          </tr>`;
+      }).join("");
+      el.fieldTable.innerHTML = `
+        <table>
+          <thead><tr><th>字段名</th><th>key</th><th>类型</th><th>飞书 uiType</th><th>标记</th><th>选项/说明</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="6" class="empty">没有匹配字段。</td></tr>'}</tbody>
+        </table>`;
+    }
+
+    function renderRaw(wf) {
+      const summary = {
+        rulePackId: state.rulepack && state.rulepack.rulePackId,
+        schemaVersion: state.rulepack && state.rulepack.schemaVersion,
+        workflow: {
+          rulePackId: wf.rulePackId,
+          workflowType: wf.workflowType,
+          name: wf.name,
+          fields: safeArray(wf.fields).map(field => ({ key: field.key, name: field.name, type: field.type, uiType: field.bitable && field.bitable.uiType })),
+          nodes: safeArray(wf.nodes).map(node => ({ id: node.id, name: node.name, type: node.type, required_fields: node.required_fields, optional_fields: node.optional_fields })),
+          edges: safeArray(wf.edges).map(edge => ({ from: edge.from, to: edge.to, action: edge.action, condition: edge.condition, effects: edge.effects }))
+        }
+      };
+      el.rawSummary.textContent = JSON.stringify(summary, null, 2);
+    }
+
+    function setView(viewName) {
+      document.querySelectorAll(".section-tabs .tab").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.view === viewName);
+      });
+      document.querySelectorAll(".view").forEach(view => view.classList.add("hidden"));
+      document.getElementById(`${viewName}View`).classList.remove("hidden");
+      if (viewName === "fields") renderFields(activeWorkflow() || {});
+    }
+
+    function loadSample() {
+      const sample = {
+        schemaVersion: "work-pilot-project-rulepack/v1-lite",
+        rulePackId: "demo-project-rulepack",
+        version: 1,
+        workflows: [{
+          rulePackId: "demo-demand",
+          workflowType: "demand",
+          name: "示例需求流程",
+          fields: [
+            { key: "title", name: "需求名称", type: "text", required_on_create: true, bitable: { uiType: "Text", property: {} } },
+            { key: "current_owner", name: "需求负责人", sourceColumn: "当前负责人", type: "user", bitable: { uiType: "User", property: { multiple: false } } },
+            { key: "priority", name: "优先级", type: "select", options: ["高", "中", "低"], bitable: { uiType: "SingleSelect", property: { options: [{ name: "高" }, { name: "中" }, { name: "低" }] } } },
+            { key: "needs_testing", name: "需要提测", type: "bool", bitable: { uiType: "Checkbox", property: {} } }
+          ],
+          nodes: [
+            { id: "review", name: "需求评审", type: "start", owner_role: "pm", required_fields: ["title"], optional_fields: ["priority", "needs_testing"] },
+            { id: "dev", name: "实现中", type: "normal", owner_role: "dev", required_fields: [], optional_fields: ["current_owner"] },
+            { id: "test", name: "测试中", type: "normal", owner_role: "tester", required_fields: [], optional_fields: [] },
+            { id: "done", name: "已完成", type: "end", owner_role: "pm", required_fields: [], optional_fields: [] }
+          ],
+          edges: [
+            { from: "review", to: "dev", effects: [{ type: "set_status", field: "status", value: "实现中" }] },
+            { from: "dev", to: "test", condition: { field: "needs_testing", op: "eq", value: true }, effects: [{ type: "append_audit_log" }] },
+            { from: "dev", to: "done", condition: { field: "needs_testing", op: "eq", value: false }, effects: [{ type: "append_audit_log" }] },
+            { from: "test", to: "done", action: "accept", effects: [{ type: "append_audit_log" }] },
+            { from: "test", to: "dev", action: "reject", effects: [{ type: "append_audit_log" }] }
+          ],
+          table: { main: { logicalKey: "demand_main", defaultName: "需求主表", fieldRefs: "all" }, systemFields: ["rulePackId", "rulePackVersion", "workflowType", "currentNode", "currentOwner", "status"] }
+        }]
+      };
+      parseRulepack(JSON.stringify(sample, null, 2), "内置示例");
+    }
+
+    el.fileInput.addEventListener("change", async event => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const content = await file.text();
+      parseRulepack(content, file.name);
+    });
+
+    el.dropzone.addEventListener("dragover", event => {
+      event.preventDefault();
+      el.dropzone.classList.add("dragover");
+    });
+    el.dropzone.addEventListener("dragleave", () => el.dropzone.classList.remove("dragover"));
+    el.dropzone.addEventListener("drop", async event => {
+      event.preventDefault();
+      el.dropzone.classList.remove("dragover");
+      const file = event.dataTransfer.files && event.dataTransfer.files[0];
+      if (!file) return;
+      const content = await file.text();
+      parseRulepack(content, file.name);
+    });
+
+    el.parsePasteBtn.addEventListener("click", () => {
+      parseRulepack(el.pasteArea.value, "粘贴内容");
+    });
+
+    el.loadSampleBtn.addEventListener("click", loadSample);
+
+    document.querySelectorAll(".section-tabs .tab").forEach(btn => {
+      btn.addEventListener("click", () => setView(btn.dataset.view));
+    });
+
+    el.nodeFieldsTab.addEventListener("click", () => {
+      state.nodeDetailMode = "fields";
+      renderNodeDetail(activeWorkflow() || {});
+    });
+
+    el.nodeFormTab.addEventListener("click", () => {
+      state.nodeDetailMode = "form";
+      renderNodeDetail(activeWorkflow() || {});
+    });
+
+    el.nodeFlowTab.addEventListener("click", () => {
+      state.nodeDetailMode = "flow";
+      renderNodeDetail(activeWorkflow() || {});
+    });
+
+    el.fieldSearch.addEventListener("input", () => renderFields(activeWorkflow() || {}));
+
+    el.zoomRange.addEventListener("input", () => setZoom(Number(el.zoomRange.value) / 100));
+
+    el.fitBtn.addEventListener("click", () => {
+      fitGraphToViewport();
+    });
+
+    el.fullscreenBtn.addEventListener("click", async () => {
+      if (document.fullscreenElement === el.graphView) {
+        await document.exitFullscreen();
+        return;
+      }
+      await el.graphView.requestFullscreen();
+    });
+
+    document.addEventListener("fullscreenchange", () => {
+      const active = document.fullscreenElement === el.graphView;
+      el.fullscreenBtn.textContent = active ? "退出全屏" : "⛶ 全屏";
+      el.fullscreenBtn.setAttribute("aria-pressed", String(active));
+      requestAnimationFrame(fitGraphToViewport);
+    });
+
+    el.canvasShell.addEventListener("wheel", event => {
+      if (document.fullscreenElement !== el.graphView || !event.ctrlKey) return;
+      event.preventDefault();
+      setZoom(state.zoom + (event.deltaY < 0 ? 0.1 : -0.1), event);
+    }, { passive: false });
+
+    renderAll();
+  </script>
+</body>
+</html>
