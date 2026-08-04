@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="work-pilot-build" content="transition-preview-v1" />
   <title>Work-Pilot RulePack 可视化校验工具</title>
   <style>
     :root {
@@ -563,6 +564,90 @@
       align-content: start;
       grid-auto-rows: max-content;
       gap: 13px;
+    }
+
+    .preview-section {
+      display: grid;
+      align-content: start;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .preview-section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .preview-section-head h4 {
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .preview-transition-options {
+      display: grid;
+      gap: 8px;
+    }
+
+    .preview-transition-option {
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr);
+      align-items: start;
+      gap: 10px;
+      min-width: 0;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+      cursor: pointer;
+      transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+    }
+
+    .preview-transition-option:hover {
+      border-color: var(--line-strong);
+    }
+
+    .preview-transition-option:has(input:checked) {
+      border-color: var(--violet);
+      background: rgba(123, 97, 255, 0.08);
+      box-shadow: inset 3px 0 0 var(--violet);
+    }
+
+    .preview-transition-option input {
+      width: 16px;
+      height: 16px;
+      margin: 3px 0 0;
+      accent-color: var(--violet);
+    }
+
+    .preview-transition-copy {
+      display: grid;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .preview-transition-title {
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+
+    .preview-transition-meta {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    .preview-transition-empty {
+      padding: 10px 12px;
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      background: var(--paper-soft);
+      color: var(--muted);
+      font-size: 13px;
     }
 
     .preview-field {
@@ -2498,16 +2583,63 @@
       return `<input class="preview-control" type="text" aria-label="${aria}" placeholder="请输入${aria}"${requiredAttr} />`;
     }
 
-    function renderNodeForm(selected, fields) {
+    function renderTransitionChoices(selected, outgoing, nodes, fields) {
+      const ordered = safeArray(outgoing)
+        .map((edge, index) => ({ edge, index }))
+        .sort((left, right) => {
+          const leftPriority = Number(left.edge && left.edge.priority);
+          const rightPriority = Number(right.edge && right.edge.priority);
+          const leftValue = Number.isFinite(leftPriority) ? leftPriority : Number.MAX_SAFE_INTEGER;
+          const rightValue = Number.isFinite(rightPriority) ? rightPriority : Number.MAX_SAFE_INTEGER;
+          return leftValue - rightValue || left.index - right.index;
+        })
+        .map(item => item.edge)
+        .filter(Boolean);
+
+      if (!ordered.length) {
+        return `
+          <section class="preview-section preview-transition-section">
+            <div class="preview-section-head"><h4>推进方向</h4><span class="badge">0 项</span></div>
+            <div class="preview-transition-empty">当前节点没有离开流转，通常表示这是结束节点。</div>
+          </section>`;
+      }
+
+      const groupName = `preview-transition-${selected.id || "node"}`;
+      const choices = ordered.map((edge, index) => {
+        const target = nodes.get(edge.to) || {};
+        const targetName = target.name || edge.to || "未命名节点";
+        const action = humanAction(edge);
+        const title = !edge.action || action === "常规推进"
+          ? `推进到「${targetName}」`
+          : `${action} → 「${targetName}」`;
+        const condition = humanCondition(edge.condition, fields);
+        const inputContract = humanRequiredFields(target.required_fields, target.optional_fields, fields);
+        return `
+          <label class="preview-transition-option">
+            <input type="radio" name="${escapeHtml(groupName)}" value="${escapeHtml(edgePolicyKey(edge))}"${index === 0 ? " checked" : ""} />
+            <span class="preview-transition-copy">
+              <span class="preview-transition-title">${escapeHtml(title)}</span>
+              <span class="preview-transition-meta">${escapeHtml(condition)}</span>
+              <span class="preview-transition-meta">${escapeHtml(inputContract)}</span>
+            </span>
+          </label>`;
+      }).join("");
+
+      return `
+        <section class="preview-section preview-transition-section">
+          <div class="preview-section-head"><h4>推进方向</h4><span class="badge">${ordered.length} 项</span></div>
+          <div class="small">当前节点「${escapeHtml(selected.name || selected.id)}」，请选择一条规则允许的流转。</div>
+          <div class="preview-transition-options">${choices}</div>
+        </section>`;
+    }
+
+    function renderNodeForm(selected, fields, outgoing = [], nodes = new Map()) {
       const requiredKeys = safeArray(selected.required_fields);
       const optionalKeys = safeArray(selected.optional_fields).filter(key => !requiredKeys.includes(key));
       const items = [
         ...requiredKeys.map(key => ({ key, required: true })),
         ...optionalKeys.map(key => ({ key, required: false }))
       ];
-      if (!items.length) {
-        return `<div class="form-preview"><div class="form-preview-head"><div><h3>${escapeHtml(selected.name || selected.id)} · 输入表单</h3><div class="small">此节点没有配置需要用户输入的字段。</div></div><span class="badge">0 项</span></div></div>`;
-      }
       const controls = items.map(item => {
         const field = fields.get(item.key) || { key: item.key, name: item.key, type: "unknown" };
         return `
@@ -2517,13 +2649,25 @@
             <div class="small">${escapeHtml(item.key)} · ${escapeHtml(field.type || "unknown")}${item.required ? " · 必填" : " · 可选"}</div>
           </div>`;
       }).join("");
+      const fieldSection = items.length
+        ? `
+          <section class="preview-section">
+            <div class="preview-section-head"><h4>节点输入字段</h4><span class="badge">${items.length} 项</span></div>
+            <div class="form-preview-fields">${controls}</div>
+          </section>`
+        : `
+          <section class="preview-section">
+            <div class="preview-section-head"><h4>节点输入字段</h4><span class="badge">0 项</span></div>
+            <div class="preview-transition-empty">此节点没有配置需要用户输入的字段。</div>
+          </section>`;
       return `
         <div class="form-preview">
           <div class="form-preview-head">
-            <div><h3>${escapeHtml(selected.name || selected.id)} · 输入表单</h3><div class="small">模拟节点进入后用户看到的填写内容，不会写入数据。</div></div>
-            <span class="badge">${items.length} 项</span>
+            <div><h3>${escapeHtml(selected.name || selected.id)} · 操作预览</h3><div class="small">模拟当前节点的输入项和可选推进方向，不会写入数据。</div></div>
+            <span class="badge">${items.length} 字段 · ${safeArray(outgoing).length} 方向</span>
           </div>
-          <div class="form-preview-fields">${controls}</div>
+          ${renderTransitionChoices(selected, outgoing, nodes, fields)}
+          ${fieldSection}
         </div>`;
     }
 
@@ -2548,7 +2692,7 @@
       el.nodeFlowTab.classList.toggle("active", state.nodeDetailMode === "flow");
 
       if (state.nodeDetailMode === "form") {
-        el.nodeDetail.innerHTML = renderNodeForm(selected, fields);
+        el.nodeDetail.innerHTML = renderNodeForm(selected, fields, outgoing, nodesById);
         return;
       }
 

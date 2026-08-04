@@ -12,6 +12,5 @@
 
 ## 发布版本
 
-- 版本：2026.08.03
-- 构建基线：dedicated-return-ports-v4
-
+- 版本：2026.08.04
+- 构建基线：transition-preview-v1
