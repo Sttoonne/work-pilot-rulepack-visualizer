@@ -1,3 +1,3 @@
 Work-Pilot RulePack Visualizer
-Version: 2026.08.04
-Build: transition-preview-v1
+Version: 2026.08.05
+Build: advance-target-contract-v1

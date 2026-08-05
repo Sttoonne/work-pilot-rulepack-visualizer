@@ -12,5 +12,5 @@
 
 ## 发布版本
 
-- 版本：2026.08.04
-- 构建基线：transition-preview-v1
+- 版本：2026.08.05
+- 构建基线：advance-target-contract-v1

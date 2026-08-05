@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="work-pilot-build" content="transition-preview-v1" />
+  <meta name="work-pilot-build" content="advance-target-contract-v1" />
   <title>Work-Pilot RulePack 可视化校验工具</title>
   <style>
     :root {
@@ -1081,6 +1081,7 @@
       workflows: [],
       activeWorkflowIndex: 0,
       selectedNodeId: null,
+      previewTransitionKey: null,
       nodeDetailMode: "fields",
       validations: [],
       zoom: 1,
@@ -1278,6 +1279,7 @@
         state.workflows = normalized.workflows;
         state.activeWorkflowIndex = 0;
         state.selectedNodeId = null;
+        state.previewTransitionKey = null;
         state.nodeDetailMode = "fields";
         state.currentGraphKey = null;
         state.validations = validateRulepack(parsed, state.workflows);
@@ -1863,6 +1865,7 @@
         btn.addEventListener("click", () => {
           state.activeWorkflowIndex = Number(btn.dataset.workflow);
           state.selectedNodeId = null;
+          state.previewTransitionKey = null;
           state.nodeDetailMode = "fields";
           state.currentGraphKey = null;
           renderWorkflowTabs();
@@ -2495,6 +2498,7 @@
           const nodeId = card.getAttribute("data-node-id");
           if (!nodeId) return;
           state.selectedNodeId = nodeId;
+          state.previewTransitionKey = null;
           renderGraph(wf);
           renderNodeDetail(wf);
         };
@@ -2583,8 +2587,8 @@
       return `<input class="preview-control" type="text" aria-label="${aria}" placeholder="请输入${aria}"${requiredAttr} />`;
     }
 
-    function renderTransitionChoices(selected, outgoing, nodes, fields) {
-      const ordered = safeArray(outgoing)
+    function orderedOutgoingEdges(outgoing) {
+      return safeArray(outgoing)
         .map((edge, index) => ({ edge, index }))
         .sort((left, right) => {
           const leftPriority = Number(left.edge && left.edge.priority);
@@ -2595,6 +2599,24 @@
         })
         .map(item => item.edge)
         .filter(Boolean);
+    }
+
+    function previewTransitionKey(edge) {
+      if (!edge) return "";
+      return [
+        edgePolicyKey(edge),
+        String(edge.priority ?? ""),
+        JSON.stringify(edge.condition || null)
+      ].join("|");
+    }
+
+    function resolvePreviewTransition(outgoing, selectedKey) {
+      const ordered = orderedOutgoingEdges(outgoing);
+      return ordered.find(edge => previewTransitionKey(edge) === selectedKey) || ordered[0] || null;
+    }
+
+    function renderTransitionChoices(selected, outgoing, nodes, fields, selectedKey = null) {
+      const ordered = orderedOutgoingEdges(outgoing);
 
       if (!ordered.length) {
         return `
@@ -2605,7 +2627,9 @@
       }
 
       const groupName = `preview-transition-${selected.id || "node"}`;
-      const choices = ordered.map((edge, index) => {
+      const activeEdge = resolvePreviewTransition(ordered, selectedKey);
+      const activeKey = previewTransitionKey(activeEdge);
+      const choices = ordered.map(edge => {
         const target = nodes.get(edge.to) || {};
         const targetName = target.name || edge.to || "未命名节点";
         const action = humanAction(edge);
@@ -2614,9 +2638,10 @@
           : `${action} → 「${targetName}」`;
         const condition = humanCondition(edge.condition, fields);
         const inputContract = humanRequiredFields(target.required_fields, target.optional_fields, fields);
+        const edgeKey = previewTransitionKey(edge);
         return `
           <label class="preview-transition-option">
-            <input type="radio" name="${escapeHtml(groupName)}" value="${escapeHtml(edgePolicyKey(edge))}"${index === 0 ? " checked" : ""} />
+            <input type="radio" name="${escapeHtml(groupName)}" value="${escapeHtml(edgeKey)}" data-preview-edge-key="${escapeHtml(edgeKey)}"${edgeKey === activeKey ? " checked" : ""} />
             <span class="preview-transition-copy">
               <span class="preview-transition-title">${escapeHtml(title)}</span>
               <span class="preview-transition-meta">${escapeHtml(condition)}</span>
@@ -2633,9 +2658,11 @@
         </section>`;
     }
 
-    function renderNodeForm(selected, fields, outgoing = [], nodes = new Map()) {
-      const requiredKeys = safeArray(selected.required_fields);
-      const optionalKeys = safeArray(selected.optional_fields).filter(key => !requiredKeys.includes(key));
+    function renderNodeForm(selected, fields, outgoing = [], nodes = new Map(), selectedKey = null) {
+      const activeEdge = resolvePreviewTransition(outgoing, selectedKey);
+      const targetNode = activeEdge ? nodes.get(activeEdge.to) : null;
+      const requiredKeys = safeArray(targetNode && targetNode.required_fields);
+      const optionalKeys = safeArray(targetNode && targetNode.optional_fields).filter(key => !requiredKeys.includes(key));
       const items = [
         ...requiredKeys.map(key => ({ key, required: true })),
         ...optionalKeys.map(key => ({ key, required: false }))
@@ -2652,21 +2679,28 @@
       const fieldSection = items.length
         ? `
           <section class="preview-section">
-            <div class="preview-section-head"><h4>节点输入字段</h4><span class="badge">${items.length} 项</span></div>
+            <div class="preview-section-head"><h4>推进时填写</h4><span class="badge">${items.length} 项</span></div>
             <div class="form-preview-fields">${controls}</div>
           </section>`
         : `
           <section class="preview-section">
-            <div class="preview-section-head"><h4>节点输入字段</h4><span class="badge">0 项</span></div>
-            <div class="preview-transition-empty">此节点没有配置需要用户输入的字段。</div>
+            <div class="preview-section-head"><h4>推进时填写</h4><span class="badge">0 项</span></div>
+            <div class="preview-transition-empty">${activeEdge ? "所选推进方向没有配置需要用户填写的业务字段。" : "当前节点没有可执行的推进方向。"}</div>
           </section>`;
+      const targetName = targetNode && (targetNode.name || targetNode.id);
+      const previewTitle = targetName
+        ? `${selected.name || selected.id} → ${targetName} · 推进表单`
+        : `${selected.name || selected.id} · 操作预览`;
+      const previewDescription = targetName
+        ? `字段取自目标节点「${targetName}」的输入契约，与产品实际推进表单保持一致。`
+        : "当前节点没有离开流转，不会生成推进表单。";
       return `
         <div class="form-preview">
           <div class="form-preview-head">
-            <div><h3>${escapeHtml(selected.name || selected.id)} · 操作预览</h3><div class="small">模拟当前节点的输入项和可选推进方向，不会写入数据。</div></div>
+            <div><h3>${escapeHtml(previewTitle)}</h3><div class="small">${escapeHtml(previewDescription)}</div></div>
             <span class="badge">${items.length} 字段 · ${safeArray(outgoing).length} 方向</span>
           </div>
-          ${renderTransitionChoices(selected, outgoing, nodes, fields)}
+          ${renderTransitionChoices(selected, outgoing, nodes, fields, selectedKey)}
           ${fieldSection}
         </div>`;
     }
@@ -2692,7 +2726,16 @@
       el.nodeFlowTab.classList.toggle("active", state.nodeDetailMode === "flow");
 
       if (state.nodeDetailMode === "form") {
-        el.nodeDetail.innerHTML = renderNodeForm(selected, fields, outgoing, nodesById);
+        const activePreviewEdge = resolvePreviewTransition(outgoing, state.previewTransitionKey);
+        state.previewTransitionKey = activePreviewEdge ? previewTransitionKey(activePreviewEdge) : null;
+        el.nodeDetail.innerHTML = renderNodeForm(selected, fields, outgoing, nodesById, state.previewTransitionKey);
+        el.nodeDetail.querySelectorAll(".preview-transition-option input").forEach(input => {
+          input.addEventListener("change", () => {
+            if (!input.checked) return;
+            state.previewTransitionKey = input.dataset.previewEdgeKey || null;
+            renderNodeDetail(wf);
+          });
+        });
         return;
       }
 

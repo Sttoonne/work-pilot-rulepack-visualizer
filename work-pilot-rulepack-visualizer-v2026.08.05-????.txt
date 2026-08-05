@@ -1,0 +1,7 @@
+Work-Pilot RulePack 可视化校验工具 2026.08.05
+
+本版将表单预览解析规则与产品推进表单对齐：字段来自所选流转的目标节点，而不是当前节点。多推进方向可切换预览，切换后标题、必填/可选字段与控件同步更新。
+
+构建：advance-target-contract-v1
+HTML SHA256：7b5700fc0ab5c1d5206caad76716d3746797bd68dcf50212718f7a8b3dbc42b2
+ZIP SHA256：34f87ff917c5866904a6d7d2f27c38fa4992958afffcd8a0a487be8fc982e9d4
